@@ -1,0 +1,486 @@
+{% extends "layout.html" %}
+{% set active_page = 'dashboard' %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+
+<!-- Page Header -->
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Dashboard</h1>
+    <p class="page-subtitle">Welcome back! Here's your financial snapshot</p>
+  </div>
+  <div class="user-chip">
+    <div class="user-chip-avatar">{{ email[0]|upper }}</div>
+    {{ email }}
+  </div>
+</div>
+
+<!-- ── STATS ─────────────────────────────────────── -->
+<div class="stats-grid">
+  <div class="stat-card sc-green">
+    <div class="stat-icon">💵</div>
+    <div class="stat-label">Income</div>
+    <div class="stat-value">₹{{ income }}</div>
+  </div>
+  <div class="stat-card sc-red">
+    <div class="stat-icon">🛒</div>
+    <div class="stat-label">Total Spent</div>
+    <div class="stat-value">₹{{ total_expense }}</div>
+  </div>
+  <div class="stat-card sc-blue">
+    <div class="stat-icon">🏦</div>
+    <div class="stat-label">Savings</div>
+    <div class="stat-value">₹{{ savings }}</div>
+  </div>
+  <div class="stat-card sc-amber">
+    <div class="stat-icon">📋</div>
+    <div class="stat-label">Budget</div>
+    <div class="stat-value">₹{{ budget }}</div>
+  </div>
+</div>
+<!-- ── ROW: INCOME + BUDGET ──────────────────────── -->
+<div class="grid-2">
+
+  <!-- INCOME CARD with Set / Add Bonus tabs -->
+  <div class="card">
+    <h3 class="card-title"><span class="card-icon">💵</span> Income</h3>
+
+    <div class="income-tabs">
+      <button class="income-tab active" onclick="switchTab('set')">Set Income</button>
+      <button class="income-tab" onclick="switchTab('add')">➕ Add Bonus</button>
+    </div>
+
+    <!-- Set Income -->
+    <div id="tab-set">
+      <p class="income-tab-desc">Replace your current income with a new fixed amount.</p>
+      <form action="/set_income" method="POST">
+        <div class="inline-form">
+          <input class="input" type="number" step="0.01" name="income"
+                 placeholder="Enter monthly income (₹)" required>
+          <button class="btn btn-primary" type="submit">Save</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Add Bonus -->
+    <div id="tab-add" style="display:none">
+      <p class="income-tab-desc">
+        Add a bonus, freelance, or extra income on top of your current
+        <strong style="color:var(--green)">₹{{ income }}</strong>.
+      </p>
+      <form action="/add_income" method="POST">
+        <div class="inline-form">
+          <input class="input" type="number" step="0.01" name="amount"
+                 placeholder="Amount to add (₹)" required>
+          <input class="input" type="text" name="label"
+                 placeholder="Label e.g. Bonus, Freelance" style="flex:1.5">
+          <button class="btn btn-green-outline" type="submit">➕ Add</button>
+        </div>
+      </form>
+
+      {% if income_logs %}
+        <div class="income-log">
+          <div class="income-log-title">Recent additions</div>
+          {% for log in income_logs %}
+            <div class="income-log-row">
+              <span class="income-log-dot"></span>
+              <span class="income-log-label">{{ log.label }}</span>
+              <span class="income-log-amount">+₹{{ log.amount }}</span>
+              <span class="income-log-date">{{ log.date.strftime('%d %b') }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- BUDGET CARD -->
+  <div class="card">
+    <h3 class="card-title"><span class="card-icon">📋</span> Monthly Budget</h3>
+    <form action="/set_budget" method="POST">
+      <div class="inline-form">
+        <input class="input" type="number" step="0.01" name="budget"
+               placeholder="Enter monthly budget (₹)" required>
+        <button class="btn btn-primary" type="submit">Save</button>
+      </div>
+    </form>
+    {% if overspend %}
+      <div class="alert alert-red" style="margin-top:14px">⚠️ You've exceeded your monthly budget!</div>
+    {% endif %}
+  </div>
+
+</div>
+<!-- ── ADD EXPENSE ───────────────────────────────── -->
+<div class="card">
+  <h3 class="card-title"><span class="card-icon">➕</span> Add Expense</h3>
+  <form action="/add_expense" method="POST">
+    <div class="inline-form">
+      <input class="input" type="number" step="0.01" name="amount"
+             placeholder="Amount (₹)" required>
+      <input class="input" type="text" name="category"
+             placeholder="Category (e.g. Food, Rent, Travel)" required>
+      <button class="btn btn-blue" type="submit">+ Add Expense</button>
+    </div>
+  </form>
+</div>
+<!-- ── OCCASIONAL FUND ─────────────────────────── -->
+<div class="card occ-card" id="occasional-fund">
+  <div class="occ-header">
+    <h3 class="card-title" style="margin-bottom:0">
+      <span class="card-icon">🎪</span> Occasional Fund
+      <span class="occ-tag">Non-daily</span>
+    </h3>
+    {% if occasional_fund > 0 %}
+      <div class="occ-meta">
+        <span class="occ-total-label">Fund Total</span>
+        <span class="occ-total-val">₹{{ occasional_fund }}</span>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Set fund amount -->
+  <form action="/set_occasional_fund" method="POST" class="occ-set-form">
+    <div class="inline-form" style="margin-bottom:0">
+      <input class="input" type="number" step="0.01" name="amount"
+             placeholder="Set occasional fund amount (₹)"
+             value="{{ occasional_fund if occasional_fund > 0 else '' }}" required>
+      <button class="btn btn-primary" type="submit">
+        {{ 'Update' if occasional_fund > 0 else 'Set Fund' }}
+      </button>
+    </div>
+  </form>
+
+  {% if occasional_fund > 0 %}
+
+    <!-- Fund balance bar -->
+    <div class="occ-balance-section">
+      <div class="occ-balance-row">
+        <div class="occ-bal-box occ-bal-total">
+          <div class="occ-bal-label">Total Fund</div>
+          <div class="occ-bal-val">₹{{ occasional_fund }}</div>
+        </div>
+        <div class="occ-bal-box occ-bal-used">
+          <div class="occ-bal-label">Used</div>
+          <div class="occ-bal-val" style="color:var(--red)">₹{{ occ_spent }}</div>
+        </div>
+        <div class="occ-bal-box occ-bal-rem">
+          <div class="occ-bal-label">Remaining</div>
+          <div class="occ-bal-val" style="color:var(--green)">₹{{ occ_remaining }}</div>
+        </div>
+        <div class="occ-bal-box occ-bal-pct">
+          <div class="occ-bal-label">Used %</div>
+          <div class="occ-bal-val" style="color:{{ 'var(--red)' if occ_used_pct >= 90 else 'var(--amber)' if occ_used_pct >= 60 else 'var(--green)' }}">
+            {{ occ_used_pct }}%
+          </div>
+        </div>
+      </div>
+
+      <!-- Progress bar -->
+      <div class="occ-progress-wrap">
+        <div class="progress-track" style="height:10px">
+          <div class="progress-fill" style="
+            width:{{ [occ_used_pct, 100]|min }}%;
+            background:{{ 'linear-gradient(90deg,var(--red),#DC2626)' if occ_used_pct >= 90
+                          else 'linear-gradient(90deg,var(--amber),#D97706)' if occ_used_pct >= 60
+                          else 'linear-gradient(90deg,var(--green),var(--green-2))' }}
+          "></div>
+        </div>
+        {% if occ_remaining <= 0 %}
+          <div class="alert alert-red" style="margin-top:10px">
+            ⚠️ Your occasional fund is fully used up!
+          </div>
+        {% elif occ_used_pct >= 60 %}
+          <div class="alert alert-amber" style="margin-top:10px">
+            📊 {{ occ_used_pct }}% of your occasional fund used. ₹{{ occ_remaining }} remaining.
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Spend from fund -->
+    <div class="occ-spend-section">
+      <div class="occ-spend-title">
+        <span>💸 Spend from Fund</span>
+        <button class="occ-toggle-btn" onclick="toggleOccForm()" id="occToggleBtn">
+          + Add Spend
+        </button>
+      </div>
+
+      <div id="occSpendForm" style="display:none">
+        {% if occ_remaining > 0 %}
+          <form action="/add_occasional_spend" method="POST">
+            <!-- Preset category buttons -->
+            <div class="occ-presets">
+              <button type="button" class="occ-preset active" onclick="setOccCat(this,'Festival')">🎉 Festival</button>
+              <button type="button" class="occ-preset" onclick="setOccCat(this,'Medical')">🏥 Medical</button>
+              <button type="button" class="occ-preset" onclick="setOccCat(this,'Travel')">✈️ Travel</button>
+              <button type="button" class="occ-preset" onclick="setOccCat(this,'Gifts')">🎁 Gifts</button>
+              <button type="button" class="occ-preset" onclick="setOccCat(this,'Other')">📦 Other</button>
+            </div>
+            <input type="hidden" name="category" id="occCatInput" value="Festival">
+
+            <div class="occ-form-row">
+              <input class="input" type="number" step="0.01" name="amount"
+                     placeholder="Amount (₹)" min="0.01"
+                     max="{{ occ_remaining }}" required>
+              <input class="input" type="text" name="label"
+                     placeholder="Label e.g. Diwali Shopping, Doctor Visit">
+              <button class="btn btn-primary" type="submit">Use Fund</button>
+            </div>
+            <p class="occ-hint">Max available: <strong style="color:var(--green)">₹{{ occ_remaining }}</strong></p>
+          </form>
+        {% else %}
+          <div class="alert alert-red">Fund exhausted — no balance to spend.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Recent spends -->
+    {% if occ_recent %}
+      <div class="occ-history">
+        <div class="occ-history-title">Recent Occasional Spends</div>
+        {% set occ_icons = {'Festival':'🎉','Medical':'🏥','Travel':'✈️','Gifts':'🎁','Other':'📦'} %}
+        {% for spend in occ_recent %}
+          <div class="occ-history-row">
+            <span class="occ-hist-icon">{{ occ_icons.get(spend.category, '📦') }}</span>
+            <div class="occ-hist-info">
+              <span class="occ-hist-label">{{ spend.label }}</span>
+              <span class="occ-hist-cat">{{ spend.category }}</span>
+            </div>
+            <span class="occ-hist-date">{{ spend.date.strftime('%d %b') }}</span>
+            <span class="occ-hist-amt">-₹{{ spend.amount }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty" style="padding:16px">
+        <div class="empty-icon">🎪</div>
+        <div class="empty-text">No occasional spends yet. Use the fund for festivals, medical needs, travel or gifts.</div>
+      </div>
+    {% endif %}
+
+  {% else %}
+    <!-- Empty state when fund not set -->
+    <div class="occ-empty-state">
+      <div class="occ-es-grid">
+        <div class="occ-es-item"><span>🎉</span><span>Festivals</span></div>
+        <div class="occ-es-item"><span>🏥</span><span>Medical</span></div>
+        <div class="occ-es-item"><span>✈️</span><span>Travel</span></div>
+        <div class="occ-es-item"><span>🎁</span><span>Gifts</span></div>
+      </div>
+      <p class="occ-es-desc">
+        Set aside a fixed amount for non-daily, occasional expenses like festivals, medical emergencies, travel, or gifts —
+        separate from your regular budget.
+      </p>
+    </div>
+  {% endif %}
+
+</div>
+
+
+<!-- ── SAVINGS GOAL ──────────────────────────────── -->
+<div class="card">
+  <h3 class="card-title"><span class="card-icon">🎯</span> Savings Goal
+    {% if savings_goal > 0 %}
+      <span style="margin-left:auto;font-size:13px;font-weight:400;color:var(--text-2)">Goal: ₹{{ savings_goal }}</span>
+    {% endif %}
+  </h3>
+  <form action="/set_goal" method="POST">
+    <div class="inline-form">
+      <input class="input" type="number" step="0.01" name="goal"
+             placeholder="Enter savings goal (₹)" required>
+      <button class="btn btn-primary" type="submit">Set Goal</button>
+    </div>
+  </form>
+  {% if savings_goal > 0 %}
+    <div style="margin-top:20px">
+      <div class="progress-header">
+        <span>₹{{ savings }} saved of ₹{{ savings_goal }}</span>
+        <span class="progress-pct">{{ goal_progress|round(1) }}%</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" style="width:{{ [goal_progress,100]|min }}%"></div>
+      </div>
+    </div>
+  {% endif %}
+</div>
+
+<!-- ── CHART + CATEGORIES ────────────────────────── -->
+<div class="grid-2">
+  <div class="card">
+    <h3 class="card-title"><span class="card-icon">🥧</span> Spending Distribution</h3>
+    {% if category_totals %}
+      <div class="chart-container">
+        <canvas id="expenseChart"></canvas>
+      </div>
+    {% else %}
+      <div class="empty"><div class="empty-icon">📭</div><div class="empty-text">Add expenses to see chart</div></div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h3 class="card-title"><span class="card-icon">🏷️</span> Category Breakdown</h3>
+    {% if category_totals %}
+      {% set colors = ['#22C55E','#3B82F6','#F59E0B','#EF4444','#8B5CF6','#EC4899','#14B8A6','#F97316'] %}
+      <table class="cat-table">
+        <thead>
+          <tr><th>Category</th><th style="text-align:right">Amount</th></tr>
+        </thead>
+        <tbody>
+          {% for category, amount in category_totals.items() %}
+          <tr>
+            <td>
+              <span class="cat-dot" style="background:{{ colors[loop.index0 % colors|length] }}"></span>
+              <span class="cat-name">{{ category }}</span>
+            </td>
+            <td style="text-align:right"><span class="cat-amount">₹{{ amount }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="empty"><div class="empty-icon">📂</div><div class="empty-text">No categories yet</div></div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ── ALERTS + PERSONALITY ──────────────────────── -->
+<div class="grid-2">
+  <div class="card">
+    <h3 class="card-title"><span class="card-icon">🔔</span> Category Alerts</h3>
+    {% if category_alerts %}
+      {% for alert in category_alerts %}
+        <div class="alert alert-red">⚠️ {{ alert }}</div>
+      {% endfor %}
+    {% else %}
+      <div class="alert alert-green">✅ All categories within limits — great work!</div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h3 class="card-title"><span class="card-icon">🧠</span> Spending Personality</h3>
+    <div style="text-align:center;padding:16px 0">
+      <div class="personality-pill">✨ {{ personality }}</div>
+      <p style="font-size:13px;color:var(--text-2);margin-top:14px;line-height:1.6">
+        Your spending habits reveal your financial personality. Use this insight to build better money habits.
+      </p>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- ── EXPENSES LIST ─────────────────────────────── -->
+<div class="card">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
+    <h3 class="card-title" style="margin-bottom:0"><span class="card-icon">📜</span> Your Expenses</h3>
+    <div class="filter-row">
+      <a href="/dashboard?filter=all"
+         class="filter-btn {% if not request.args.get('filter') or request.args.get('filter')=='all' %}active{% endif %}">All</a>
+      <a href="/dashboard?filter=daily"
+         class="filter-btn {% if request.args.get('filter')=='daily' %}active{% endif %}">Today</a>
+      <a href="/dashboard?filter=weekly"
+         class="filter-btn {% if request.args.get('filter')=='weekly' %}active{% endif %}">7 Days</a>
+      <a href="/dashboard?filter=monthly"
+         class="filter-btn {% if request.args.get('filter')=='monthly' %}active{% endif %}">This Month</a>
+    </div>
+  </div>
+
+  {% if expenses %}
+    <div class="expense-list">
+      {% for expense in expenses %}
+        <div class="expense-row">
+          <div class="expense-row-left">
+            <span class="expense-dot"></span>
+            <div>
+              <div class="expense-cat">{{ expense.category }}</div>
+              <div class="expense-date">{{ expense.date }}</div>
+            </div>
+          </div>
+          <span class="expense-amt">-₹{{ expense.amount }}</span>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty">
+      <div class="empty-icon">🧾</div>
+      <div class="empty-text">No expenses yet. Add one above to get started!</div>
+    </div>
+  {% endif %}
+</div>
+
+<!-- ── AI ASSISTANT ──────────────────────────────── -->
+<div class="card ai-card">
+  <h3 class="card-title"><span class="card-icon">🤖</span> AI Finance Assistant</h3>
+  <div class="ai-msg">{{ assistant_message }}</div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Chart
+  const data = {{ category_totals | tojson | safe }};
+  if (data && Object.keys(data).length > 0) {
+    const palette = ['#22C55E','#3B82F6','#F59E0B','#EF4444','#8B5CF6','#EC4899','#14B8A6','#F97316'];
+    new Chart(document.getElementById('expenseChart'), {
+      type: 'doughnut',
+      data: {
+        labels: Object.keys(data),
+        datasets: [{
+          data: Object.values(data),
+          backgroundColor: palette.slice(0, Object.keys(data).length),
+          borderColor: '#141D2E',
+          borderWidth: 3,
+          hoverOffset: 8
+        }]
+      },
+      options: {
+        cutout: '62%',
+        plugins: { legend: { display: false } }
+      }
+    });
+  }
+
+  // Income tab switcher
+  function switchTab(tab) {
+    document.getElementById('tab-set').style.display = tab === 'set' ? 'block' : 'none';
+    document.getElementById('tab-add').style.display = tab === 'add' ? 'block' : 'none';
+    document.querySelectorAll('.income-tab').forEach((btn, i) => {
+      btn.classList.toggle('active', (tab === 'set' && i === 0) || (tab === 'add' && i === 1));
+    });
+  }
+
+  // Restore Add Bonus tab after form submit
+  if (new URLSearchParams(window.location.search).get('tab') === 'add') {
+    switchTab('add');
+  }
+
+  // Occasional fund form toggle
+  function toggleOccForm() {
+    const form = document.getElementById('occSpendForm');
+    const btn  = document.getElementById('occToggleBtn');
+    const open = form.style.display === 'none';
+    form.style.display = open ? 'block' : 'none';
+    btn.textContent    = open ? '✕ Close' : '+ Add Spend';
+    btn.classList.toggle('occ-toggle-open', open);
+  }
+
+  // Occasional fund category selector
+  function setOccCat(btn, cat) {
+    document.getElementById('occCatInput').value = cat;
+    document.querySelectorAll('.occ-preset').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  // Auto-open form if redirected back after spend
+  if (window.location.hash === '#occasional-fund') {
+    const el = document.getElementById('occasional-fund');
+    if (el) { setTimeout(() => el.scrollIntoView({behavior:'smooth'}), 200); }
+  }
+</script>
+{% endblock %}

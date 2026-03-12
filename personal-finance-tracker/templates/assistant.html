@@ -1,0 +1,479 @@
+{% extends "layout.html" %}
+{% set active_page = 'assistant' %}
+{% block title %}AI Assistant{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">AI Assistant</h1>
+    <p class="page-subtitle">Ask anything about your finances</p>
+  </div>
+  <div class="ai-status-badge">
+    <span class="ai-status-dot"></span> Online
+  </div>
+</div>
+
+<div class="chat-layout">
+
+  <!-- ── LEFT: QUICK PROMPTS ───────────────────────── -->
+  <div class="chat-sidebar">
+    <div class="card" style="margin-bottom:16px">
+      <h3 class="card-title" style="margin-bottom:14px">
+        <span class="card-icon">⚡</span> Quick Questions
+      </h3>
+      <div class="quick-prompts">
+        {% set prompts = [
+          ('💸', 'How much did I spend today?'),
+          ('📅', 'How much did I spend this week?'),
+          ('🗓', 'How much did I spend this month?'),
+          ('💵', 'How much money do I have remaining?'),
+          ('📆', 'How much can I spend per day?'),
+          ('🏆', 'What is my top spending category?'),
+          ('📊', 'Am I over budget?'),
+          ('🎯', 'How is my savings goal going?'),
+          ('💰', 'What is my biggest expense?'),
+          ('📈', 'Compare this month vs last month'),
+          ('🛑', 'How can I control my spending?'),
+          ('💡', 'Give me saving tips'),
+          ('🤝', 'How much money did I lend out?'),
+          ('🤲', 'How much do I owe to others?'),
+          ('⏰', 'Any overdue lends or borrows?'),
+          ('📋', 'Show my lend and borrow summary'),
+        ] %}
+        {% for icon, prompt in prompts %}
+          <button class="quick-prompt-btn" onclick="sendQuick('{{ prompt }}')">
+            <span>{{ icon }}</span> {{ prompt }}
+          </button>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:0">
+      <h3 class="card-title" style="margin-bottom:12px">
+        <span class="card-icon">📊</span> Snapshot
+      </h3>
+      <div class="snapshot-row">
+        <span class="snap-label">Income</span>
+        <span class="snap-val" style="color:var(--green)">{{ currency }}{{ income }}</span>
+      </div>
+      <div class="snapshot-row">
+        <span class="snap-label">Spent (month)</span>
+        <span class="snap-val" style="color:var(--red)">{{ currency }}{{ month_spent }}</span>
+      </div>
+      <div class="snapshot-row">
+        <span class="snap-label">Remaining</span>
+        <span class="snap-val" style="color:var(--amber)">{{ currency }}{{ money_remaining }}</span>
+      </div>
+      <div class="snapshot-row">
+        <span class="snap-label">Budget left</span>
+        <span class="snap-val" style="color:var(--green)">{{ currency }}{{ budget_left }}</span>
+      </div>
+      <div class="snapshot-row">
+        <span class="snap-label">Goal progress</span>
+        <span class="snap-val" style="color:var(--blue)">{{ goal_progress }}%</span>
+      </div>
+      <div class="snapshot-row">
+        <span class="snap-label">Safe/day limit</span>
+        <span class="snap-val" style="color:var(--purple)">{{ currency }}{{ daily_safe_limit }}</span>
+      </div>
+      <div class="snapshot-row" style="border:none">
+        <span class="snap-label">Days left</span>
+        <span class="snap-val" style="color:var(--text-2)">{{ days_left_in_month }} days</span>
+      </div>
+    </div>
+
+    <!-- Lend & Borrow mini panel -->
+    <div class="card" style="margin-bottom:0;margin-top:16px">
+      <h3 class="card-title" style="margin-bottom:12px">
+        <span class="card-icon">🤝</span> Lend &amp; Borrow
+      </h3>
+      <div class="snapshot-row">
+        <span class="snap-label">Lent out</span>
+        <span class="snap-val" style="color:var(--green)">{{ currency }}{{ lb_total_lent_out }}</span>
+      </div>
+      <div class="snapshot-row">
+        <span class="snap-label">I owe others</span>
+        <span class="snap-val" style="color:var(--red)">{{ currency }}{{ lb_total_owed_back }}</span>
+      </div>
+      <div class="snapshot-row">
+        <span class="snap-label">Active lends</span>
+        <span class="snap-val" style="color:var(--text-2)">{{ lb_active_lends_count }}</span>
+      </div>
+      <div class="snapshot-row" style="border:none">
+        <span class="snap-label">Overdue</span>
+        <span class="snap-val" style="color:{{ 'var(--red)' if lb_overdue_lends_count + lb_overdue_borrows_count > 0 else 'var(--green)' }}">
+          {{ lb_overdue_lends_count + lb_overdue_borrows_count }}
+          {{ '⚠️' if lb_overdue_lends_count + lb_overdue_borrows_count > 0 else '✅' }}
+        </span>
+      </div>
+      <a href="/lend-borrow" class="btn btn-outline"
+         style="width:100%;text-align:center;margin-top:10px;font-size:12px;padding:7px">
+        View All Records →
+      </a>
+    </div>
+  </div>
+
+  <!-- ── RIGHT: CHAT WINDOW ───────────────────────── -->
+  <div class="chat-window-wrap">
+    <div class="chat-window" id="chatWindow">
+
+      <!-- Welcome message -->
+      <div class="chat-msg bot-msg">
+        <div class="bot-avatar">🤖</div>
+        <div class="msg-bubble bot-bubble">
+          <p>Hey! I'm your <strong>FinTrack Assistant</strong> 👋</p>
+          <p style="margin-top:8px">I can tell you about your spending, budget, savings goal, and more. Try asking me something, or use the quick questions on the left!</p>
+          <div class="msg-time">Just now</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Typing indicator (hidden by default) -->
+    <div class="typing-indicator" id="typingIndicator">
+      <div class="bot-avatar" style="width:30px;height:30px;font-size:14px">🤖</div>
+      <div class="typing-dots">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+
+    <!-- Input bar -->
+    <div class="chat-input-bar">
+      <input class="chat-input" id="chatInput" type="text"
+             placeholder="Ask about your spending, budget, savings..."
+             onkeydown="if(event.key==='Enter') sendMessage()">
+      <button class="chat-send-btn" onclick="sendMessage()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <path d="M22 2L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Financial data injected from Flask ────────────
+const FIN = {
+  income:           {{ income }},
+  budget:           {{ budget }},
+  savings_goal:     {{ savings_goal }},
+  goal_progress:    {{ goal_progress }},
+  month_spent:      {{ month_spent }},
+  today_spent:      {{ today_spent }},
+  week_spent:       {{ week_spent }},
+  budget_left:      {{ budget_left }},
+  budget_used_pct:  {{ budget_used_pct }},
+  top_category:     "{{ top_category }}",
+  top_cat_amt:      {{ top_cat_amt }},
+  biggest_exp_cat:  "{{ biggest_exp.category if biggest_exp else 'N/A' }}",
+  biggest_exp_amt:  {{ biggest_exp.amount if biggest_exp else 0 }},
+  biggest_exp_date: "{{ biggest_exp.date.strftime('%d %b %Y') if biggest_exp else 'N/A' }}",
+  this_month_spent: {{ this_month_spent }},
+  last_month_spent: {{ last_month_spent }},
+  currency:         "{{ currency }}",
+  savings:          {{ savings }},
+  money_remaining:  {{ money_remaining }},
+  daily_safe_limit: {{ daily_safe_limit }},
+  days_left:        {{ days_left_in_month }},
+  cat_breakdown:    {{ cat_breakdown_json | safe }},
+  lb_lent_out:      {{ lb_total_lent_out }},
+  lb_owed_back:     {{ lb_total_owed_back }},
+  lb_overdue_lends: {{ lb_overdue_lends_count }},
+  lb_overdue_borrows: {{ lb_overdue_borrows_count }},
+  lb_active_lends:  {{ lb_active_lends_count }},
+  lb_active_borrows:{{ lb_active_borrows_count }},
+  lb_lends:         {{ lb_lends_json | safe }},
+  lb_borrows:       {{ lb_borrows_json | safe }},
+};
+
+function getBotReply(msg) {
+  const m = msg.toLowerCase().trim();
+  const c = FIN.currency;
+
+  // Remaining balance
+  if (m.includes('remaining') || m.includes('how much do i have') || m.includes('balance') ||
+      (m.includes('left') && !m.includes('left month') && !m.includes('days left'))) {
+    if (FIN.money_remaining <= 0)
+      return `You have <strong style="color:#EF4444">no money remaining</strong> — your expenses (${c}${FIN.month_spent.toFixed(2)}) exceed your income (${c}${FIN.income}). Stop non-essential spending immediately!`;
+    let reply = `You have <strong style="color:#22C55E">${c}${FIN.money_remaining.toFixed(2)}</strong> remaining from your income of ${c}${FIN.income}.`;
+    if (FIN.budget > 0)
+      reply += `<br>Budget remaining: <strong style="color:#F59E0B">${c}${Math.max(0,FIN.budget_left).toFixed(2)}</strong>.`;
+    reply += `<br><br>💡 Safe daily limit for the next ${FIN.days_left} days: <strong>${c}${FIN.daily_safe_limit.toFixed(2)}/day</strong>.`;
+    return reply;
+  }
+
+  // Daily limit
+  if (m.includes('per day') || m.includes('daily') || m.includes('each day') || m.includes('safe to spend') || m.includes('can i spend')) {
+    if (FIN.days_left <= 0)
+      return `It is the last day of the month! Remaining balance: <strong>${c}${FIN.money_remaining.toFixed(2)}</strong>.`;
+    if (FIN.daily_safe_limit <= 0)
+      return `You have already overspent this month. To save anything, spend <strong style="color:#EF4444">nothing more</strong> for the remaining ${FIN.days_left} days.`;
+    return `Safe daily spending limit: <strong style="color:#22C55E">${c}${FIN.daily_safe_limit.toFixed(2)}/day</strong> for the next ${FIN.days_left} days.<br><br>Budget remaining: <strong>${c}${Math.max(0,FIN.budget_left).toFixed(2)}</strong> spread over ${FIN.days_left} days.`;
+  }
+
+  // Today
+  if (m.includes('today')) {
+    if (FIN.today_spent === 0)
+      return `You have not spent anything today! You are saving your full daily limit of <strong style="color:#22C55E">${c}${FIN.daily_safe_limit.toFixed(2)}</strong>. Keep it up!`;
+    const over = FIN.today_spent - FIN.daily_safe_limit;
+    let reply = `You have spent <strong>${c}${FIN.today_spent.toFixed(2)}</strong> today.`;
+    if (FIN.daily_safe_limit > 0) {
+      if (over > 0)
+        reply += `<br><br>You are <strong style="color:#EF4444">${c}${over.toFixed(2)} over</strong> your safe daily limit of ${c}${FIN.daily_safe_limit.toFixed(2)}. Spend less tomorrow to balance it out.`;
+      else
+        reply += `<br><br>You are within your daily safe limit of ${c}${FIN.daily_safe_limit.toFixed(2)}. Good job!`;
+    }
+    return reply;
+  }
+
+  // Week
+  if (m.includes('week')) {
+    const weekLimit = FIN.daily_safe_limit * 7;
+    let reply = `This week you spent <strong>${c}${FIN.week_spent.toFixed(2)}</strong> — avg <strong>${c}${(FIN.week_spent/7).toFixed(0)}/day</strong>.`;
+    if (weekLimit > 0)
+      reply += FIN.week_spent > weekLimit
+        ? `<br><br>You are <strong style="color:#EF4444">${c}${(FIN.week_spent-weekLimit).toFixed(2)} over</strong> the safe weekly limit of ${c}${weekLimit.toFixed(2)}.`
+        : `<br><br>Within the safe weekly limit of ${c}${weekLimit.toFixed(2)}.`;
+    return reply;
+  }
+
+  // This month
+  if ((m.includes('month') && !m.includes('last')) || m.includes('this month')) {
+    let reply = `This month you have spent <strong>${c}${FIN.month_spent.toFixed(2)}</strong>.`;
+    if (FIN.budget > 0) reply += ` That is <strong>${((FIN.month_spent/FIN.budget)*100).toFixed(1)}%</strong> of your ${c}${FIN.budget} budget.`;
+    reply += `<br>Remaining from income: <strong>${c}${FIN.money_remaining.toFixed(2)}</strong>.`;
+    if (FIN.budget > 0 && FIN.month_spent > FIN.budget)
+      reply += `<br><br>You are <strong style="color:#EF4444">over budget</strong> by ${c}${(FIN.month_spent-FIN.budget).toFixed(2)}.`;
+    return reply;
+  }
+
+  // Control spending / advice
+  if (m.includes('control') || m.includes('reduce') || m.includes('cut') || m.includes('how to') || m.includes('advice') || m.includes('suggest')) {
+    if (!FIN.top_category || FIN.top_category === 'e2014')
+      return `Start by adding expenses to track your spending. Then I can give you personalised advice!`;
+    const topPct = FIN.month_spent > 0 ? ((FIN.top_cat_amt/FIN.month_spent)*100).toFixed(0) : 0;
+    let reply = `Here is your personalised spending control plan:<br><br>`;
+    reply += `Your biggest spend is <strong>${FIN.top_category}</strong> at ${c}${FIN.top_cat_amt.toFixed(2)} (${topPct}% of total).<br>`;
+    if (FIN.budget > 0) reply += `Try to keep it under <strong>${c}${(FIN.budget*0.3).toFixed(2)}</strong> (30% of budget).<br><br>`;
+    const cats = Object.entries(FIN.cat_breakdown).sort((a,b)=>b[1]-a[1]);
+    reply += `<strong>Recommended limits per category:</strong><br>`;
+    cats.slice(0,5).forEach(([cat,amt]) => {
+      reply += `• <strong>${cat}</strong>: spent ${c}${amt.toFixed(2)} → aim for <strong style="color:#22C55E">${c}${(amt*0.8).toFixed(2)}</strong> (20% less)<br>`;
+    });
+    reply += `<br>Safe daily limit: <strong style="color:#22C55E">${c}${FIN.daily_safe_limit.toFixed(2)}</strong> for ${FIN.days_left} days remaining.`;
+    return reply;
+  }
+
+  // Saving tips
+  if (m.includes('saving tip') || m.includes('save money') || m.includes('save more') || m.includes('tip')) {
+    let tips = [];
+    if (FIN.today_spent === 0) tips.push(`You spent nothing today — saving your full ${c}${FIN.daily_safe_limit.toFixed(2)} daily limit!`);
+    if (FIN.top_category && FIN.top_category !== 'e2014') tips.push(`Cut <strong>${FIN.top_category}</strong> by 20% and save <strong>${c}${(FIN.top_cat_amt*0.2).toFixed(2)}/month</strong>.`);
+    if (FIN.savings_goal > 0 && FIN.goal_progress < 100) tips.push(`You need <strong>${c}${(FIN.savings_goal-FIN.savings).toFixed(2)}</strong> more to hit your savings goal.`);
+    tips.push(`50/30/20 rule: 50% needs, 30% wants, 20% savings. Your safe daily limit is <strong>${c}${FIN.daily_safe_limit.toFixed(2)}</strong>.`);
+    tips.push(`Try one no-spend day per week. Over a month that saves ${c}${(FIN.daily_safe_limit*4).toFixed(2)}!`);
+    return tips.map((t,i) => `${["💡","📌","🎯","📊","📵"][i]} ${t}`).join("<br><br>");
+  }
+
+  // Top category
+  if (m.includes('top') || m.includes('categor') || m.includes('most')) {
+    if (!FIN.top_category || FIN.top_category === 'e2014')
+      return `No expenses yet. Start adding expenses to see your top category!`;
+    const topPct = FIN.month_spent > 0 ? ((FIN.top_cat_amt/FIN.month_spent)*100).toFixed(1) : 0;
+    let reply = `Top category: <strong>${FIN.top_category}</strong> — ${c}${FIN.top_cat_amt.toFixed(2)} (${topPct}% of total).`;
+    if (FIN.budget > 0 && FIN.top_cat_amt > FIN.budget*0.4)
+      reply += `<br><br>That is over 40% of your budget on one category! Try capping it at <strong>${c}${(FIN.budget*0.3).toFixed(2)}</strong>.`;
+    return reply;
+  }
+
+  // Budget
+  if (m.includes('budget') || m.includes('over budget')) {
+    if (FIN.budget === 0) return `No budget set yet. Go to <strong>Dashboard</strong> to set one!`;
+    if (FIN.budget_left < 0)
+      return `You are <strong style="color:#EF4444">over budget</strong> by <strong>${c}${Math.abs(FIN.budget_left).toFixed(2)}</strong> (${FIN.budget_used_pct.toFixed(1)}% used).<br><br>Spend max <strong>${c}${FIN.daily_safe_limit > 0 ? FIN.daily_safe_limit.toFixed(2) : "0.00"}/day</strong> for the remaining ${FIN.days_left} days.`;
+    return `Budget remaining: <strong style="color:#22C55E">${c}${FIN.budget_left.toFixed(2)}</strong> (${FIN.budget_used_pct.toFixed(1)}% used of ${c}${FIN.budget}).<br><br>${FIN.budget_used_pct > 80 ? "Getting close! Limit yourself to <strong>" + c + FIN.daily_safe_limit.toFixed(2) + "/day</strong>." : "Good job! Safe daily limit: <strong>" + c + FIN.daily_safe_limit.toFixed(2) + "/day</strong>."}`;
+  }
+
+  // Savings goal
+  if (m.includes('saving') || m.includes('goal')) {
+    if (FIN.savings_goal === 0) return `No savings goal set. Go to <strong>Dashboard</strong> to set one!`;
+    if (FIN.goal_progress >= 100) return `Congratulations! You have reached your savings goal of ${c}${FIN.savings_goal}!`;
+    const left = Math.max(0, FIN.savings_goal - FIN.savings);
+    return `Savings goal: ${c}${FIN.savings_goal}. Saved so far: <strong style="color:#22C55E">${c}${FIN.savings.toFixed(2)}</strong> (${FIN.goal_progress.toFixed(1)}%).<br>Still needed: <strong style="color:#F59E0B">${c}${left.toFixed(2)}</strong>.<br><br>Staying at ${c}${FIN.daily_safe_limit.toFixed(2)}/day will help you reach it!`;
+  }
+
+  // Biggest expense
+  if (m.includes('biggest') || m.includes('largest') || m.includes('highest')) {
+    if (FIN.biggest_exp_amt === 0) return `No expenses recorded yet. Start tracking!`;
+    let reply = `Biggest expense: <strong style="color:#EF4444">${c}${FIN.biggest_exp_amt}</strong> in <strong>${FIN.biggest_exp_cat}</strong> on ${FIN.biggest_exp_date}.`;
+    if (FIN.daily_safe_limit > 0)
+      reply += `<br><br>That equals <strong>${(FIN.biggest_exp_amt/FIN.daily_safe_limit).toFixed(1)} days</strong> of your safe daily limit.`;
+    return reply;
+  }
+
+  // Month comparison
+  if (m.includes('last month') || m.includes('compar') || m.includes(' vs ') || m.includes('previous')) {
+    if (FIN.last_month_spent === 0 && FIN.this_month_spent === 0)
+      return `No data for comparison yet. Add expenses over a few months!`;
+    const diff = FIN.this_month_spent - FIN.last_month_spent;
+    const pct  = FIN.last_month_spent > 0 ? Math.abs((diff/FIN.last_month_spent)*100).toFixed(1) : 0;
+    if (diff > 0) return `You spent <strong style="color:#EF4444">${c}${diff.toFixed(2)} more</strong> this month vs last (${pct}% increase).<br>This: ${c}${FIN.this_month_spent.toFixed(2)} vs Last: ${c}${FIN.last_month_spent.toFixed(2)}.<br><br>Tip: Cut ${c}${(diff/30).toFixed(2)}/day to match last month.`;
+    if (diff < 0) return `You spent <strong style="color:#22C55E">${c}${Math.abs(diff).toFixed(2)} less</strong> this month vs last (${pct}% decrease)! This: ${c}${FIN.this_month_spent.toFixed(2)} vs Last: ${c}${FIN.last_month_spent.toFixed(2)}.`;
+    return `Same spending as last month: <strong>${c}${FIN.this_month_spent.toFixed(2)}</strong>.`;
+  }
+
+  // Income
+  if (m.includes('income') || m.includes('earn') || m.includes('salary')) {
+    if (FIN.income === 0) return `No income set. Go to <strong>Dashboard</strong> to add your income.`;
+    return `Income: <strong style="color:#22C55E">${c}${FIN.income}</strong>. After ${c}${FIN.month_spent.toFixed(2)} in expenses, you have <strong>${c}${FIN.money_remaining.toFixed(2)}</strong> remaining.`;
+  }
+
+  // ── LEND & BORROW ─────────────────────────────────
+
+  // How much did I lend out
+  if (m.includes('lend') || m.includes('lent') || m.includes('lend out')) {
+    if (FIN.lb_active_lends === 0)
+      return `You have no active lend records. Go to <strong><a href="/lend-borrow" style="color:var(--green)">Lend &amp; Borrow</a></strong> to add one!`;
+    let reply = `You have lent out a total of <strong style="color:var(--green)">${c}${FIN.lb_lent_out.toFixed(2)}</strong> across <strong>${FIN.lb_active_lends}</strong> active record${FIN.lb_active_lends > 1 ? 's' : ''}.<br><br>`;
+    FIN.lb_lends.forEach(l => {
+      reply += `• <strong>${l.name}</strong> — ${c}${l.outstanding.toFixed(2)} outstanding`;
+      if (l.due_date) reply += ` (due ${l.due_date})`;
+      if (l.overdue)  reply += ` <strong style="color:var(--red)">⏰ OVERDUE</strong>`;
+      reply += `<br>`;
+    });
+    if (FIN.lb_overdue_lends > 0)
+      reply += `<br>⚠️ <strong style="color:var(--red)">${FIN.lb_overdue_lends} record${FIN.lb_overdue_lends>1?'s':''} overdue</strong> — follow up soon!`;
+    reply += `<br><a href="/lend-borrow?tab=lend" style="color:var(--green)">→ View all lend records</a>`;
+    return reply;
+  }
+
+  // How much do I owe / borrowed
+  if (m.includes('owe') || m.includes('borrow') || m.includes('i owe') || m.includes('borrowed')) {
+    if (FIN.lb_active_borrows === 0)
+      return `You have no active borrow records. You owe nothing to anyone — great! 🎉`;
+    let reply = `You owe <strong style="color:var(--red)">${c}${FIN.lb_owed_back.toFixed(2)}</strong> across <strong>${FIN.lb_active_borrows}</strong> active borrow record${FIN.lb_active_borrows > 1 ? 's' : ''}.<br><br>`;
+    FIN.lb_borrows.forEach(b => {
+      reply += `• <strong>${b.name}</strong> — ${c}${b.outstanding.toFixed(2)} to return`;
+      if (b.due_date) reply += ` (return by ${b.due_date})`;
+      if (b.overdue)  reply += ` <strong style="color:var(--red)">⏰ OVERDUE</strong>`;
+      reply += `<br>`;
+    });
+    if (FIN.lb_overdue_borrows > 0)
+      reply += `<br>⚠️ <strong style="color:var(--red)">${FIN.lb_overdue_borrows} repayment${FIN.lb_overdue_borrows>1?'s':''} overdue</strong> — pay back as soon as possible!`;
+    reply += `<br><a href="/lend-borrow?tab=borrow" style="color:var(--blue)">→ View all borrow records</a>`;
+    return reply;
+  }
+
+  // Overdue check
+  if (m.includes('overdue') || m.includes('late') || m.includes('pending') || m.includes('due')) {
+    const totalOverdue = FIN.lb_overdue_lends + FIN.lb_overdue_borrows;
+    if (totalOverdue === 0)
+      return `No overdue lend or borrow records! Everything is on track. ✅`;
+    let reply = `You have <strong style="color:var(--red)">${totalOverdue} overdue record${totalOverdue>1?'s':''}</strong>:<br><br>`;
+    if (FIN.lb_overdue_lends > 0) {
+      reply += `💸 <strong>${FIN.lb_overdue_lends} lend${FIN.lb_overdue_lends>1?'s':''} overdue</strong> — people who haven't returned your money yet.<br>`;
+      FIN.lb_lends.filter(l=>l.overdue).forEach(l => {
+        reply += `&nbsp;&nbsp;• <strong>${l.name}</strong> owes you ${c}${l.outstanding.toFixed(2)}<br>`;
+      });
+    }
+    if (FIN.lb_overdue_borrows > 0) {
+      reply += `<br>🤲 <strong>${FIN.lb_overdue_borrows} borrow${FIN.lb_overdue_borrows>1?'s':''} overdue</strong> — you need to return money to:<br>`;
+      FIN.lb_borrows.filter(b=>b.overdue).forEach(b => {
+        reply += `&nbsp;&nbsp;• <strong>${b.name}</strong> — you owe ${c}${b.outstanding.toFixed(2)}<br>`;
+      });
+    }
+    reply += `<br><a href="/lend-borrow" style="color:var(--amber)">→ Go to Lend &amp; Borrow to settle</a>`;
+    return reply;
+  }
+
+  // Full lend & borrow summary
+  if (m.includes('lend and borrow') || m.includes('lend & borrow') || m.includes('loan') || m.includes('summary') && (m.includes('lend') || m.includes('borrow'))) {
+    const netPosition = FIN.lb_lent_out - FIN.lb_owed_back;
+    let reply = `<strong>🤝 Lend &amp; Borrow Summary</strong><br><br>`;
+    reply += `💸 Money you lent out: <strong style="color:var(--green)">${c}${FIN.lb_lent_out.toFixed(2)}</strong> (${FIN.lb_active_lends} active records)<br>`;
+    reply += `🤲 Money you owe: <strong style="color:var(--red)">${c}${FIN.lb_owed_back.toFixed(2)}</strong> (${FIN.lb_active_borrows} active records)<br>`;
+    reply += `<br>`;
+    if (netPosition > 0)
+      reply += `📊 Net position: People owe you <strong style="color:var(--green)">${c}${netPosition.toFixed(2)}</strong> more than you owe.<br>`;
+    else if (netPosition < 0)
+      reply += `📊 Net position: You owe <strong style="color:var(--red)">${c}${Math.abs(netPosition).toFixed(2)}</strong> more than others owe you.<br>`;
+    else
+      reply += `📊 Net position: Balanced — you owe as much as is owed to you.<br>`;
+    const totalOverdue = FIN.lb_overdue_lends + FIN.lb_overdue_borrows;
+    reply += totalOverdue > 0
+      ? `<br>⚠️ <strong style="color:var(--red)">${totalOverdue} overdue record${totalOverdue>1?'s':''}</strong> need attention!`
+      : `<br>✅ No overdue records.`;
+    reply += `<br><br><a href="/lend-borrow" style="color:var(--green)">→ Manage all records</a>`;
+    return reply;
+  }
+
+  // Greetings
+  if (m.match(/^(hi|hello|hey|sup|yo|good morning|good evening|howdy)[\s!?.]*$/)) {
+    const g = [`Hey! I am your FinTrack Assistant. Ask about spending, budget, or savings!`,`Hello! Ready to talk finances? Ask me anything!`,`Hi! How can I help with your finances today?`];
+    return g[Math.floor(Math.random()*g.length)];
+  }
+
+  // Help
+  if (m.includes('help') || m.includes('what can')) {
+    return `Here is what I can help with:<br><br>
+💸 <strong>Spending</strong> — today / this week / this month<br>
+💵 <strong>Remaining</strong> — how much money do I have remaining<br>
+📆 <strong>Daily limit</strong> — how much can I spend per day<br>
+🏆 <strong>Categories</strong> — what is my top spending category<br>
+📊 <strong>Budget</strong> — am I over budget<br>
+🎯 <strong>Savings</strong> — how is my savings goal going<br>
+💰 <strong>Biggest expense</strong> — what is my biggest expense<br>
+📈 <strong>Compare</strong> — this month vs last month<br>
+🛑 <strong>Control spending</strong> — how can I control my spending<br>
+💡 <strong>Tips</strong> — give me saving tips<br>
+🤝 <strong>Lend</strong> — how much did I lend out / who owes me<br>
+🤲 <strong>Borrow</strong> — how much do I owe to others<br>
+⏰ <strong>Overdue</strong> — any overdue lends or borrows<br>
+📋 <strong>Summary</strong> — show my lend and borrow summary`;
+  }
+
+  const defaults = [`I did not quite get that. Try asking about your spending or type <strong>help</strong>.`,`Try "how much can I spend per day" or "how can I control my spending".`];
+  return defaults[Math.floor(Math.random()*defaults.length)];
+}
+
+function getTime() { return new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}); }
+
+function appendMsg(text, isUser) {
+  const win = document.getElementById("chatWindow");
+  const div = document.createElement("div");
+  div.className = `chat-msg ${isUser ? "user-msg" : "bot-msg"}`;
+  if (isUser) {
+    div.innerHTML = `<div class="msg-bubble user-bubble">${text}<div class="msg-time">${getTime()}</div></div>`;
+  } else {
+    div.innerHTML = `<div class="bot-avatar">🤖</div><div class="msg-bubble bot-bubble">${text}<div class="msg-time">${getTime()}</div></div>`;
+    div.style.opacity = "0";
+    div.style.transform = "translateY(8px)";
+    setTimeout(() => { div.style.transition = "all 0.3s ease"; div.style.opacity = "1"; div.style.transform = "translateY(0)"; }, 10);
+  }
+  win.appendChild(div);
+  win.scrollTop = win.scrollHeight;
+}
+
+function showTyping() { document.getElementById("typingIndicator").style.display="flex"; document.getElementById("chatWindow").scrollTop=9999; }
+function hideTyping() { document.getElementById("typingIndicator").style.display="none"; }
+
+function sendMessage() {
+  const inp = document.getElementById("chatInput");
+  const msg = inp.value.trim();
+  if (!msg) return;
+  appendMsg(msg, true);
+  inp.value = "";
+  showTyping();
+  setTimeout(() => { hideTyping(); appendMsg(getBotReply(msg), false); }, 600+Math.random()*600);
+}
+
+function sendQuick(text) { document.getElementById("chatInput").value=text; sendMessage(); }
+document.getElementById("chatInput").focus();
+</script>
+{% endblock %}

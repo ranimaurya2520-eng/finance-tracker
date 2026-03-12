@@ -1,0 +1,276 @@
+{% extends "layout.html" %}
+{% set active_page = 'reports' %}
+
+{% block title %}Reports{% endblock %}
+
+{% block content %}
+
+<!-- ── PAGE HEADER ────────────────────────────────── -->
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Reports</h1>
+    <p class="page-subtitle">Export and review your expense history</p>
+  </div>
+  <!-- Export buttons -->
+  <div class="report-export-btns">
+    <a href="/download_csv?from={{ from_date }}&to={{ to_date }}" class="btn btn-outline btn-sm">
+      ⬇ Download CSV
+    </a>
+    <a href="/download_pdf?from={{ from_date }}&to={{ to_date }}" class="btn btn-outline btn-sm">
+      📄 Download PDF
+    </a>
+    <button class="btn btn-primary btn-sm" onclick="window.print()">
+      🖨 Print Report
+    </button>
+  </div>
+</div>
+
+<!-- ── DATE RANGE FILTER ──────────────────────────── -->
+<div class="card rp-filter-card">
+  <h3 class="card-title" style="margin-bottom:16px"><span class="card-icon">📅</span> Filter by Date Range</h3>
+  <form action="/reports" method="GET" class="rp-filter-form">
+    <div class="rp-filter-row">
+      <div class="rp-filter-group">
+        <label class="form-label">From</label>
+        <input class="input" type="date" name="from" value="{{ from_date }}" required>
+      </div>
+      <div class="rp-filter-group">
+        <label class="form-label">To</label>
+        <input class="input" type="date" name="to" value="{{ to_date }}" required>
+      </div>
+      <div class="rp-filter-group rp-quick-btns">
+        <label class="form-label">Quick Select</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <a href="/reports?quick=this_month"  class="filter-btn {% if quick=='this_month' %}active{% endif %}">This Month</a>
+          <a href="/reports?quick=last_month"  class="filter-btn {% if quick=='last_month' %}active{% endif %}">Last Month</a>
+          <a href="/reports?quick=last_7"      class="filter-btn {% if quick=='last_7' %}active{% endif %}">7 Days</a>
+          <a href="/reports?quick=this_year"   class="filter-btn {% if quick=='this_year' %}active{% endif %}">This Year</a>
+          <a href="/reports?quick=all"         class="filter-btn {% if quick=='all' %}active{% endif %}">All Time</a>
+        </div>
+      </div>
+      <button class="btn btn-primary rp-filter-submit" type="submit">Apply Filter</button>
+    </div>
+  </form>
+</div>
+
+<!-- ── SUMMARY CARDS ──────────────────────────────── -->
+<div class="stats-grid" style="margin-bottom:20px">
+  <div class="stat-card sc-green">
+    <div class="stat-icon">💵</div>
+    <div class="stat-label">Income</div>
+    <div class="stat-value">₹{{ income }}</div>
+  </div>
+  <div class="stat-card sc-red">
+    <div class="stat-icon">🛒</div>
+    <div class="stat-label">Total Spent</div>
+    <div class="stat-value">₹{{ total_expense|round(2) }}</div>
+  </div>
+  <div class="stat-card sc-blue">
+    <div class="stat-icon">🏦</div>
+    <div class="stat-label">Savings</div>
+    <div class="stat-value">₹{{ savings|round(2) }}</div>
+  </div>
+  <div class="stat-card sc-amber">
+    <div class="stat-icon">📊</div>
+    <div class="stat-label">Transactions</div>
+    <div class="stat-value">{{ expenses|length }}</div>
+  </div>
+</div>
+
+<!-- ── CATEGORY SUMMARY ───────────────────────────── -->
+{% if category_totals %}
+<div class="card">
+  <h3 class="card-title"><span class="card-icon">🏷️</span> Category Summary</h3>
+  <div class="rp-cat-grid">
+    {% set colors = ['#22C55E','#3B82F6','#F59E0B','#EF4444','#8B5CF6','#EC4899','#14B8A6','#F97316'] %}
+    {% for cat, amt in category_totals.items() %}
+      <div class="rp-cat-card">
+        <span class="rp-cat-dot" style="background:{{ colors[loop.index0 % colors|length] }}"></span>
+        <div class="rp-cat-info">
+          <div class="rp-cat-name">{{ cat }}</div>
+          <div class="rp-cat-pct">{{ ((amt / total_expense) * 100)|round(1) if total_expense else 0 }}% of total</div>
+        </div>
+        <span class="rp-cat-amt">₹{{ amt|round(2) }}</span>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ── EXPENSE TABLE ──────────────────────────────── -->
+<div class="card">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+    <h3 class="card-title" style="margin:0">
+      <span class="card-icon">📜</span> Expense List
+      <span class="rp-count-badge">{{ expenses|length }} records</span>
+    </h3>
+    {% if expenses %}
+      <span style="font-size:13px;color:var(--text-2)">
+        {{ from_date }} → {{ to_date }}
+      </span>
+    {% endif %}
+  </div>
+
+  {% if expenses %}
+    <div class="rp-table-wrap">
+      <table class="rp-table" id="expenseTable">
+        <thead>
+          <tr>
+            <th class="sortable" onclick="sortTable(0)">#  <span class="sort-icon">↕</span></th>
+            <th class="sortable" onclick="sortTable(1)">Date <span class="sort-icon">↕</span></th>
+            <th class="sortable" onclick="sortTable(2)">Category <span class="sort-icon">↕</span></th>
+            <th class="sortable" onclick="sortTable(3)" style="text-align:right">Amount <span class="sort-icon">↕</span></th>
+            <th style="text-align:right">% of Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set colors = ['#22C55E','#3B82F6','#F59E0B','#EF4444','#8B5CF6','#EC4899','#14B8A6','#F97316'] %}
+          {% set cat_list = category_totals.keys()|list %}
+          {% for expense in expenses %}
+            <tr>
+              <td><span class="rp-row-num">{{ loop.index }}</span></td>
+              <td style="color:var(--text-2)">{{ expense.date.strftime('%d %b %Y') }}</td>
+              <td>
+                {% set ci = cat_list.index(expense.category) if expense.category in cat_list else 0 %}
+                <span class="cat-dot" style="background:{{ colors[ci % colors|length] }};"></span>
+                <span class="cat-name">{{ expense.category }}</span>
+              </td>
+              <td style="text-align:right">
+                <span class="expense-amt">-₹{{ expense.amount }}</span>
+              </td>
+              <td style="text-align:right">
+                <span class="rp-pct" style="font-size:12px;color:var(--text-3)">
+                  {{ ((expense.amount / total_expense) * 100)|round(1) if total_expense else 0 }}%
+                </span>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="rp-total-row">
+            <td colspan="3"><strong>Total</strong></td>
+            <td style="text-align:right"><strong class="expense-amt">-₹{{ total_expense|round(2) }}</strong></td>
+            <td style="text-align:right"><strong style="color:var(--text-2)">100%</strong></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty">
+      <div class="empty-icon">🧾</div>
+      <div class="empty-text">No expenses found for this date range</div>
+    </div>
+  {% endif %}
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     PRINT-ONLY LAYOUT  (only visible when printing)
+══════════════════════════════════════════════════ -->
+<div class="print-only">
+  <div class="print-header">
+    <div class="print-logo">💰 Finzo</div>
+    <div class="print-meta">
+      <div class="print-title">Expense Report</div>
+      <div class="print-period">{{ from_date }} — {{ to_date }}</div>
+      <div class="print-user">Account: {{ email }}</div>
+      <div class="print-generated">Generated: {{ now }}</div>
+    </div>
+  </div>
+
+  <div class="print-summary">
+    <div class="print-sum-box">
+      <div class="print-sum-label">Income</div>
+      <div class="print-sum-val">₹{{ income }}</div>
+    </div>
+    <div class="print-sum-box">
+      <div class="print-sum-label">Total Spent</div>
+      <div class="print-sum-val">₹{{ total_expense|round(2) }}</div>
+    </div>
+    <div class="print-sum-box">
+      <div class="print-sum-label">Savings</div>
+      <div class="print-sum-val">₹{{ savings|round(2) }}</div>
+    </div>
+    <div class="print-sum-box">
+      <div class="print-sum-label">Transactions</div>
+      <div class="print-sum-val">{{ expenses|length }}</div>
+    </div>
+  </div>
+
+  {% if category_totals %}
+  <div class="print-section-title">Category Summary</div>
+  <table class="print-table">
+    <thead>
+      <tr><th>Category</th><th>Amount</th><th>% of Total</th></tr>
+    </thead>
+    <tbody>
+      {% for cat, amt in category_totals.items() %}
+      <tr>
+        <td>{{ cat }}</td>
+        <td>₹{{ amt|round(2) }}</td>
+        <td>{{ ((amt / total_expense) * 100)|round(1) if total_expense else 0 }}%</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  <div class="print-section-title" style="margin-top:24px">All Expenses</div>
+  <table class="print-table">
+    <thead>
+      <tr><th>#</th><th>Date</th><th>Category</th><th>Amount</th></tr>
+    </thead>
+    <tbody>
+      {% for expense in expenses %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ expense.date.strftime('%d %b %Y') }}</td>
+        <td>{{ expense.category }}</td>
+        <td>₹{{ expense.amount }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="3"><strong>Total</strong></td>
+        <td><strong>₹{{ total_expense|round(2) }}</strong></td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <div class="print-footer">
+    Generated by Finzo · {{ now }} · All amounts in INR (₹)
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Sortable table ──────────────────────────────────
+let sortDir = {};
+function sortTable(col) {
+  const table = document.getElementById('expenseTable');
+  const tbody = table.querySelector('tbody');
+  const rows  = Array.from(tbody.querySelectorAll('tr'));
+  const asc   = !sortDir[col];
+  sortDir     = {};
+  sortDir[col]= asc;
+
+  rows.sort((a, b) => {
+    let aVal = a.cells[col].textContent.trim().replace(/[₹,-]/g,'');
+    let bVal = b.cells[col].textContent.trim().replace(/[₹,-]/g,'');
+    const aNum = parseFloat(aVal);
+    const bNum = parseFloat(bVal);
+    if (!isNaN(aNum) && !isNaN(bNum)) return asc ? aNum - bNum : bNum - aNum;
+    return asc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+  });
+
+  rows.forEach(r => tbody.appendChild(r));
+
+  // Update sort icons
+  document.querySelectorAll('.sort-icon').forEach(i => i.textContent = '↕');
+  const icons = document.querySelectorAll('.sortable .sort-icon');
+  if (icons[col]) icons[col].textContent = asc ? '↑' : '↓';
+}
+</script>
+{% endblock %}

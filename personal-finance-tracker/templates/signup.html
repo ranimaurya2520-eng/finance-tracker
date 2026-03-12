@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finzo — Create Account</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<div class="auth-page">
+
+  <!-- LEFT PANEL -->
+  <div class="auth-left">
+    <div class="auth-left-content">
+      <a href="/" class="auth-left-logo">
+        <div class="auth-left-logo-icon">💰</div>
+        Fin<span>zo</span>
+      </a>
+      <h2 class="auth-left-title">Start your journey to<br><span>financial freedom</span></h2>
+      <p class="auth-left-desc">Create your free account in seconds and begin tracking your money with clarity and confidence.</p>
+      <div class="auth-features">
+        <div class="auth-feature">
+          <div class="auth-feature-icon">⚡</div>
+          Set up in under 2 minutes — no credit card needed
+        </div>
+        <div class="auth-feature">
+          <div class="auth-feature-icon">🔒</div>
+          Your financial data is private and encrypted
+        </div>
+        <div class="auth-feature">
+          <div class="auth-feature-icon">📈</div>
+          Beautiful charts that make finance easy to understand
+        </div>
+        <div class="auth-feature">
+          <div class="auth-feature-icon">🧠</div>
+          Discover your unique spending personality
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="auth-right">
+    <div class="auth-card">
+      <h1 class="auth-card-title">Create your account ✨</h1>
+      <p class="auth-card-sub">
+        Already have an account? <a href="/login">Sign in →</a>
+      </p>
+
+      {% if error %}
+        <div class="alert alert-red" style="margin-bottom:20px">⚠️ {{ error }}</div>
+      {% endif %}
+
+      <form action="/signup" method="POST">
+        <div class="form-group">
+          <label class="form-label">Email address</label>
+          <input class="input" type="email" name="email" placeholder="you@example.com" required autofocus>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input class="input" type="password" name="password" placeholder="Create a strong password" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Confirm Password</label>
+          <input class="input" type="password" name="confirm_password" placeholder="Repeat your password" required>
+        </div>
+        <button class="btn btn-primary btn-block" type="submit" style="padding:13px;font-size:15px">
+          Create Free Account →
+        </button>
+        <p style="font-size:12px;color:var(--text-3);text-align:center;margin-top:14px;line-height:1.6">
+          By creating an account you agree to our Terms of Use and Privacy Policy.
+        </p>
+      </form>
+
+      <div class="auth-divider">or</div>
+
+      <div class="auth-footer-link">
+        Already have an account? <a href="/login">Sign in here</a>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

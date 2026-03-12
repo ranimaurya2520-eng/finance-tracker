@@ -1,0 +1,465 @@
+{% extends "layout.html" %}
+{% set active_page = 'lend_borrow' %}
+{% block title %}Lend &amp; Borrow{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Lend &amp; Borrow</h1>
+    <p class="page-subtitle">Track money you've lent out or borrowed from others</p>
+  </div>
+  <button class="btn btn-primary" onclick="openAddModal('{{ tab }}')">
+    + New {{ 'Lend' if tab == 'lend' else 'Borrow' }} Record
+  </button>
+</div>
+
+<!-- ── SUMMARY STATS ─────────────────────────────── -->
+<div class="lb-summary-grid">
+  <div class="lb-stat-card lb-stat-lent">
+    <div class="lb-stat-icon">💸</div>
+    <div class="lb-stat-body">
+      <div class="lb-stat-label">Total Lent Out</div>
+      <div class="lb-stat-val">₹{{ total_lent }}</div>
+      <div class="lb-stat-sub">₹{{ total_lent_out }} still outstanding</div>
+    </div>
+  </div>
+  <div class="lb-stat-card lb-stat-borrowed">
+    <div class="lb-stat-icon">🤲</div>
+    <div class="lb-stat-body">
+      <div class="lb-stat-label">Total Borrowed</div>
+      <div class="lb-stat-val">₹{{ total_borrowed }}</div>
+      <div class="lb-stat-sub">₹{{ total_owed_back }} still owed back</div>
+    </div>
+  </div>
+  <div class="lb-stat-card lb-stat-settled">
+    <div class="lb-stat-icon">✅</div>
+    <div class="lb-stat-body">
+      <div class="lb-stat-label">Lend Settled</div>
+      <div class="lb-stat-val">₹{{ total_lent_settled }}</div>
+      <div class="lb-stat-sub">Fully recovered</div>
+    </div>
+  </div>
+  <div class="lb-stat-card lb-stat-overdue">
+    <div class="lb-stat-icon">⏰</div>
+    <div class="lb-stat-body">
+      <div class="lb-stat-label">Overdue</div>
+      <div class="lb-stat-val" style="color:var(--red)">
+        {{ overdue_lends|length + overdue_borrows|length }}
+      </div>
+      <div class="lb-stat-sub">Past due date</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── OVERDUE ALERTS ────────────────────────────── -->
+{% if overdue_lends or overdue_borrows %}
+  <div class="card lb-alert-card">
+    <h3 class="card-title" style="color:var(--red)">
+      <span class="card-icon" style="background:var(--red-dim)">⏰</span> Overdue Records
+    </h3>
+    {% for r in overdue_lends %}
+      <div class="lb-overdue-row">
+        <span class="lb-type-pill lb-pill-lend">LENT</span>
+        <strong>{{ r.person_name }}</strong>
+        <span>— ₹{{ r.outstanding }} outstanding</span>
+        <span class="lb-overdue-since">Due: {{ r.due_date.strftime('%d %b %Y') }}</span>
+      </div>
+    {% endfor %}
+    {% for r in overdue_borrows %}
+      <div class="lb-overdue-row">
+        <span class="lb-type-pill lb-pill-borrow">BORROWED</span>
+        <strong>{{ r.person_name }}</strong>
+        <span>— ₹{{ r.outstanding }} to repay</span>
+        <span class="lb-overdue-since">Due: {{ r.due_date.strftime('%d %b %Y') }}</span>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+<!-- ── TABS ──────────────────────────────────────── -->
+<div class="lb-tabs">
+  <a href="/lend-borrow?tab=lend"
+     class="lb-tab {{ 'active' if tab == 'lend' }}">
+    💸 Money I Lent
+    {% if total_lent_out > 0 %}
+      <span class="lb-tab-badge">₹{{ total_lent_out }}</span>
+    {% endif %}
+  </a>
+  <a href="/lend-borrow?tab=borrow"
+     class="lb-tab {{ 'active' if tab == 'borrow' }}">
+    🤲 Money I Borrowed
+    {% if total_owed_back > 0 %}
+      <span class="lb-tab-badge lb-badge-red">₹{{ total_owed_back }}</span>
+    {% endif %}
+  </a>
+</div>
+
+<!-- ── LEND TAB ───────────────────────────────────── -->
+{% if tab == 'lend' %}
+  {% if lends %}
+    <div class="lb-records">
+      {% for record in lends %}
+        {% set pct = [(record.total_repaid / record.amount * 100), 100]|min if record.amount > 0 else 0 %}
+        <div class="lb-record-card {{ 'lb-settled' if record.status == 'settled' }} {{ 'lb-overdue-card' if record.is_overdue }}">
+
+          <!-- Card Header -->
+          <div class="lb-rec-header">
+            <div class="lb-rec-avatar">{{ record.person_name[0]|upper }}</div>
+            <div class="lb-rec-info">
+              <div class="lb-rec-name">{{ record.person_name }}</div>
+              <div class="lb-rec-meta">
+                {% if record.phone %}<span>📞 {{ record.phone }}</span>{% endif %}
+                {% if record.address %}<span>📍 {{ record.address }}</span>{% endif %}
+              </div>
+            </div>
+            <div class="lb-rec-right">
+              {% if record.status == 'settled' %}
+                <span class="lb-status-badge lb-badge-settled">✅ Settled</span>
+              {% elif record.is_overdue %}
+                <span class="lb-status-badge lb-badge-overdue">⏰ Overdue</span>
+              {% else %}
+                <span class="lb-status-badge lb-badge-active">🟢 Active</span>
+              {% endif %}
+              <div class="lb-rec-amount">₹{{ record.amount }}</div>
+            </div>
+          </div>
+
+          <!-- Details row -->
+          <div class="lb-rec-details">
+            <div class="lb-detail-chip">📅 Lent: {{ record.date.strftime('%d %b %Y') }}</div>
+            {% if record.due_date %}
+              <div class="lb-detail-chip {{ 'lb-chip-red' if record.is_overdue }}">
+                🗓 Due: {{ record.due_date.strftime('%d %b %Y') }}
+              </div>
+            {% endif %}
+            {% if record.interest_pct > 0 %}
+              <div class="lb-detail-chip lb-chip-purple">💹 {{ record.interest_pct }}% interest</div>
+            {% endif %}
+            {% if record.reason %}
+              <div class="lb-detail-chip">📝 {{ record.reason }}</div>
+            {% endif %}
+          </div>
+
+          <!-- Repayment progress -->
+          {% if record.status != 'settled' %}
+            <div class="lb-progress-section">
+              <div class="lb-progress-labels">
+                <span>Repaid: <strong style="color:var(--green)">₹{{ record.total_repaid }}</strong></span>
+                <span>Outstanding: <strong style="color:var(--red)">₹{{ record.outstanding }}</strong></span>
+                <span class="lb-pct-label">{{ pct|round(0)|int }}%</span>
+              </div>
+              <div class="progress-track" style="height:8px;margin-top:6px">
+                <div class="progress-fill" style="width:{{ pct }}%;background:linear-gradient(90deg,var(--green),var(--green-2))"></div>
+              </div>
+            </div>
+          {% endif %}
+
+          <!-- Repayment history -->
+          {% if record.repayments %}
+            <div class="lb-repay-history">
+              <div class="lb-repay-title">Repayment History</div>
+              {% for r in record.repayments %}
+                <div class="lb-repay-row">
+                  <span class="lb-repay-dot"></span>
+                  <span class="lb-repay-date">{{ r.date.strftime('%d %b %Y') }}</span>
+                  <span class="lb-repay-note">{{ r.note or '—' }}</span>
+                  <span class="lb-repay-amt">+₹{{ r.amount }}</span>
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+
+          <!-- Actions -->
+          <div class="lb-rec-actions">
+            {% if record.status == 'active' %}
+              <button class="btn btn-sm lb-btn-repay"
+                      onclick="openRepayModal({{ record.id }}, '{{ record.person_name }}', {{ record.outstanding }})">
+                💰 Add Repayment
+              </button>
+              <form action="/lend-borrow/settle/{{ record.id }}" method="POST" style="display:inline">
+                <button type="submit" class="btn btn-sm btn-outline"
+                        onclick="return confirm('Mark ₹{{ record.amount }} from {{ record.person_name }} as fully settled?')">
+                  ✅ Settle
+                </button>
+              </form>
+            {% endif %}
+            <form action="/lend-borrow/delete/{{ record.id }}" method="POST" style="display:inline">
+              <button type="submit" class="btn btn-sm lb-btn-delete"
+                      onclick="return confirm('Delete this record? This cannot be undone.')">
+                🗑 Delete
+              </button>
+            </form>
+          </div>
+
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="card">
+      <div class="empty" style="padding:40px">
+        <div class="empty-icon">💸</div>
+        <div class="empty-text">No lend records yet.<br>Click <strong>+ New Lend Record</strong> to add one.</div>
+      </div>
+    </div>
+  {% endif %}
+
+<!-- ── BORROW TAB ─────────────────────────────────── -->
+{% else %}
+  {% if borrows %}
+    <div class="lb-records">
+      {% for record in borrows %}
+        {% set pct = [(record.total_repaid / record.amount * 100), 100]|min if record.amount > 0 else 0 %}
+        <div class="lb-record-card {{ 'lb-settled' if record.status == 'settled' }} {{ 'lb-overdue-card' if record.is_overdue }}">
+
+          <div class="lb-rec-header">
+            <div class="lb-rec-avatar lb-avatar-borrow">{{ record.person_name[0]|upper }}</div>
+            <div class="lb-rec-info">
+              <div class="lb-rec-name">{{ record.person_name }}</div>
+              <div class="lb-rec-meta">
+                {% if record.phone %}<span>📞 {{ record.phone }}</span>{% endif %}
+                {% if record.address %}<span>📍 {{ record.address }}</span>{% endif %}
+              </div>
+            </div>
+            <div class="lb-rec-right">
+              {% if record.status == 'settled' %}
+                <span class="lb-status-badge lb-badge-settled">✅ Settled</span>
+              {% elif record.is_overdue %}
+                <span class="lb-status-badge lb-badge-overdue">⏰ Overdue</span>
+              {% else %}
+                <span class="lb-status-badge lb-badge-active">🟢 Active</span>
+              {% endif %}
+              <div class="lb-rec-amount" style="color:var(--red)">₹{{ record.amount }}</div>
+            </div>
+          </div>
+
+          <div class="lb-rec-details">
+            <div class="lb-detail-chip">📅 Borrowed: {{ record.date.strftime('%d %b %Y') }}</div>
+            {% if record.due_date %}
+              <div class="lb-detail-chip {{ 'lb-chip-red' if record.is_overdue }}">
+                🗓 Return by: {{ record.due_date.strftime('%d %b %Y') }}
+              </div>
+            {% endif %}
+            {% if record.interest_pct > 0 %}
+              <div class="lb-detail-chip lb-chip-purple">💹 {{ record.interest_pct }}% interest</div>
+            {% endif %}
+            {% if record.reason %}
+              <div class="lb-detail-chip">📝 {{ record.reason }}</div>
+            {% endif %}
+          </div>
+
+          {% if record.status != 'settled' %}
+            <div class="lb-progress-section">
+              <div class="lb-progress-labels">
+                <span>Returned: <strong style="color:var(--green)">₹{{ record.total_repaid }}</strong></span>
+                <span>Still owe: <strong style="color:var(--red)">₹{{ record.outstanding }}</strong></span>
+                <span class="lb-pct-label">{{ pct|round(0)|int }}%</span>
+              </div>
+              <div class="progress-track" style="height:8px;margin-top:6px">
+                <div class="progress-fill" style="width:{{ pct }}%;background:linear-gradient(90deg,var(--blue),#2563EB)"></div>
+              </div>
+            </div>
+          {% endif %}
+
+          {% if record.repayments %}
+            <div class="lb-repay-history">
+              <div class="lb-repay-title">Return History</div>
+              {% for r in record.repayments %}
+                <div class="lb-repay-row">
+                  <span class="lb-repay-dot" style="background:var(--blue)"></span>
+                  <span class="lb-repay-date">{{ r.date.strftime('%d %b %Y') }}</span>
+                  <span class="lb-repay-note">{{ r.note or '—' }}</span>
+                  <span class="lb-repay-amt" style="color:var(--blue)">₹{{ r.amount }}</span>
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+
+          <div class="lb-rec-actions">
+            {% if record.status == 'active' %}
+              <button class="btn btn-sm lb-btn-repay"
+                      onclick="openRepayModal({{ record.id }}, '{{ record.person_name }}', {{ record.outstanding }})">
+                💳 Record Return
+              </button>
+              <form action="/lend-borrow/settle/{{ record.id }}" method="POST" style="display:inline">
+                <button type="submit" class="btn btn-sm btn-outline"
+                        onclick="return confirm('Mark this borrow as fully settled?')">
+                  ✅ Settled
+                </button>
+              </form>
+            {% endif %}
+            <form action="/lend-borrow/delete/{{ record.id }}" method="POST" style="display:inline">
+              <button type="submit" class="btn btn-sm lb-btn-delete"
+                      onclick="return confirm('Delete this record permanently?')">
+                🗑 Delete
+              </button>
+            </form>
+          </div>
+
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="card">
+      <div class="empty" style="padding:40px">
+        <div class="empty-icon">🤲</div>
+        <div class="empty-text">No borrow records yet.<br>Click <strong>+ New Borrow Record</strong> to add one.</div>
+      </div>
+    </div>
+  {% endif %}
+{% endif %}
+
+
+<!-- ══════════ ADD RECORD MODAL ══════════ -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal-box lb-modal">
+    <div class="lb-modal-header">
+      <div id="modalTitle" class="modal-title" style="color:var(--text-1);font-size:18px">
+        💸 New Lend Record
+      </div>
+      <button class="lb-modal-close" onclick="closeAddModal()">✕</button>
+    </div>
+
+    <form action="/lend-borrow/add" method="POST">
+      <input type="hidden" name="type" id="recordType" value="{{ tab }}">
+
+      <!-- Type toggle -->
+      <div class="lb-type-toggle">
+        <button type="button" class="lb-type-btn {{ 'active' if tab == 'lend' }}"
+                onclick="setType('lend', this)">💸 I Lent Money</button>
+        <button type="button" class="lb-type-btn {{ 'active' if tab == 'borrow' }}"
+                onclick="setType('borrow', this)">🤲 I Borrowed Money</button>
+      </div>
+
+      <div class="lb-form-section">
+        <div class="lb-form-section-title">👤 Person Details</div>
+        <div class="form-group">
+          <label class="form-label">Full Name <span style="color:var(--red)">*</span></label>
+          <input class="input" type="text" name="person_name" placeholder="e.g. Rahul Sharma" required>
+        </div>
+        <div class="grid-2" style="gap:12px">
+          <div class="form-group">
+            <label class="form-label">Phone Number</label>
+            <input class="input" type="tel" name="phone" placeholder="+91 00000 00000">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Address</label>
+            <input class="input" type="text" name="address" placeholder="City or full address">
+          </div>
+        </div>
+      </div>
+
+      <div class="lb-form-section">
+        <div class="lb-form-section-title">💰 Transaction Details</div>
+        <div class="grid-2" style="gap:12px">
+          <div class="form-group">
+            <label class="form-label">Amount (₹) <span style="color:var(--red)">*</span></label>
+            <input class="input" type="number" step="0.01" name="amount" placeholder="0.00" required min="0.01">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Due Date <span style="color:var(--text-3)">(optional)</span></label>
+            <input class="input" type="date" name="due_date">
+          </div>
+        </div>
+        <div class="grid-2" style="gap:12px">
+          <div class="form-group">
+            <label class="form-label">Interest % / year <span style="color:var(--text-3)">(0 = none)</span></label>
+            <input class="input" type="number" step="0.1" name="interest_pct" placeholder="0" min="0" max="100" value="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Reason / Note</label>
+            <input class="input" type="text" name="reason" placeholder="e.g. Emergency, Business, Wedding">
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions" style="justify-content:flex-end">
+        <button type="button" class="btn btn-outline" onclick="closeAddModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="addSubmitBtn">💸 Add Lend Record</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<!-- ══════════ REPAYMENT MODAL ══════════ -->
+<div class="modal-overlay" id="repayModal">
+  <div class="modal-box" style="max-width:420px">
+    <div class="lb-modal-header">
+      <div class="modal-title" style="color:var(--text-1);font-size:18px">
+        💰 Add Repayment
+      </div>
+      <button class="lb-modal-close" onclick="closeRepayModal()">✕</button>
+    </div>
+    <p id="repayDesc" style="font-size:14px;color:var(--text-2);margin-bottom:20px"></p>
+    <form id="repayForm" action="" method="POST">
+      <div class="form-group">
+        <label class="form-label">Amount Repaid (₹)</label>
+        <input class="input" type="number" step="0.01" name="amount"
+               id="repayAmountInput" placeholder="0.00" required min="0.01">
+        <span style="font-size:12px;color:var(--text-3);margin-top:4px;display:block"
+              id="repayMaxHint"></span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Note <span style="color:var(--text-3)">(optional)</span></label>
+        <input class="input" type="text" name="note" placeholder="e.g. Cash, UPI, Bank Transfer">
+      </div>
+      <div class="modal-actions" style="justify-content:flex-end">
+        <button type="button" class="btn btn-outline" onclick="closeRepayModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">✅ Save Repayment</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Add modal ──────────────────────────────────────
+function openAddModal(defaultType) {
+  setType(defaultType || 'lend', document.querySelector('.lb-type-btn'));
+  document.getElementById('addModal').classList.add('visible');
+}
+function closeAddModal() {
+  document.getElementById('addModal').classList.remove('visible');
+}
+
+function setType(type, btn) {
+  document.getElementById('recordType').value = type;
+  document.querySelectorAll('.lb-type-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  else document.querySelectorAll('.lb-type-btn').forEach((b,i) => {
+    if ((type==='lend'&&i===0)||(type==='borrow'&&i===1)) b.classList.add('active');
+  });
+  const isLend = type === 'lend';
+  document.getElementById('modalTitle').textContent   = isLend ? '💸 New Lend Record' : '🤲 New Borrow Record';
+  document.getElementById('addSubmitBtn').textContent = isLend ? '💸 Add Lend Record' : '🤲 Add Borrow Record';
+}
+
+// ── Repayment modal ────────────────────────────────
+function openRepayModal(loanId, name, outstanding) {
+  document.getElementById('repayForm').action = `/lend-borrow/repay/${loanId}`;
+  document.getElementById('repayDesc').innerHTML =
+    `Recording repayment from / to <strong>${name}</strong>. Outstanding: <strong style="color:var(--red)">₹${outstanding}</strong>`;
+  document.getElementById('repayAmountInput').max   = outstanding;
+  document.getElementById('repayAmountInput').value = '';
+  document.getElementById('repayMaxHint').textContent = `Max: ₹${outstanding}`;
+  document.getElementById('repayModal').classList.add('visible');
+}
+function closeRepayModal() {
+  document.getElementById('repayModal').classList.remove('visible');
+}
+
+// Close modals on backdrop click
+document.getElementById('addModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('addModal')) closeAddModal();
+});
+document.getElementById('repayModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('repayModal')) closeRepayModal();
+});
+
+// ── Set correct button active on load ─────────────
+setType('{{ tab }}');
+</script>
+{% endblock %}

@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finzo — Smart Finance Tracker</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<!-- ════════════════════════════════
+     NAVBAR
+════════════════════════════════ -->
+<nav class="landing-nav" id="landingNav">
+  <div class="nav-inner">
+    <a href="/" class="nav-logo">Fin<span>zo</span></a>
+
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#how-it-works">How it works</a>
+      <a href="#testimonials">Reviews</a>
+    </div>
+
+    <div class="nav-cta">
+      <a href="/login"  class="btn btn-ghost btn-sm">Login</a>
+      <a href="/signup" class="btn btn-primary btn-sm">Get Started Free</a>
+    </div>
+
+    <button class="nav-hamburger" id="hamburger" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</nav>
+
+<!-- Mobile nav -->
+<div class="mobile-nav" id="mobileNav">
+  <a href="#features"     onclick="closeMobileNav()">Features</a>
+  <a href="#how-it-works" onclick="closeMobileNav()">How it works</a>
+  <a href="#testimonials" onclick="closeMobileNav()">Reviews</a>
+  <a href="/login"  class="btn btn-outline btn-sm" style="justify-content:center">Login</a>
+  <a href="/signup" class="btn btn-primary btn-sm" style="justify-content:center">Get Started Free</a>
+</div>
+
+<!-- ════════════════════════════════
+     HERO
+════════════════════════════════ -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-grid"></div>
+
+  <div class="container">
+    <div class="hero-inner">
+
+      <!-- Left -->
+      <div class="hero-text">
+        <div class="hero-eyebrow">
+          <span class="dot"></span> Smart Money Management
+        </div>
+        <h1 class="hero-title">
+          Take full<br>control of your<br><span>finances</span>
+        </h1>
+        <p class="hero-desc">
+          Track every rupee, set smart budgets, and hit your savings goals—all in one beautiful dashboard powered by AI insights.
+        </p>
+        <div class="hero-actions">
+          <a href="/signup" class="btn btn-primary btn-lg">Start for Free →</a>
+          <a href="#how-it-works" class="btn btn-outline btn-lg">See how it works</a>
+        </div>
+        <div class="hero-trust">
+          <div class="trust-avatars">
+            <span>👩</span><span>👨</span><span>👩</span><span>👨</span>
+          </div>
+          <div class="trust-text">
+            Trusted by <strong>10+</strong> users to manage their money
+          </div>
+        </div>
+      </div>
+
+      <!-- Right — Mockup card -->
+      <div class="hero-visual">
+        <div class="hero-mockup">
+          <div class="mock-header">
+            <span class="mock-title">Monthly Overview</span>
+            <span class="mock-badge">₹48,200</span>
+          </div>
+          <div class="mock-bars">
+            <div class="mock-bar b1"></div>
+            <div class="mock-bar b2"></div>
+            <div class="mock-bar b3"></div>
+            <div class="mock-bar b4"></div>
+            <div class="mock-bar b5"></div>
+            <div class="mock-bar b6"></div>
+            <div class="mock-bar b7"></div>
+          </div>
+          <div class="mock-row">
+            <span class="mock-row-left"><span class="mock-cdot" style="background:#22C55E"></span> Food & Dining</span>
+            <span class="mock-amt">-₹8,400</span>
+          </div>
+          <div class="mock-row">
+            <span class="mock-row-left"><span class="mock-cdot" style="background:#3B82F6"></span> Transport</span>
+            <span class="mock-amt">-₹3,200</span>
+          </div>
+          <div class="mock-row">
+            <span class="mock-row-left"><span class="mock-cdot" style="background:#F59E0B"></span> Shopping</span>
+            <span class="mock-amt">-₹6,800</span>
+          </div>
+        </div>
+
+        <!-- Floating chips -->
+        <div class="hero-float hf-1">
+          <span class="hf-dot" style="background:#22C55E"></span>
+          <span style="font-size:13px;font-weight:600;color:#22C55E">+₹12k saved</span>
+        </div>
+        <div class="hero-float hf-2">
+          🎯 <span style="font-size:13px;color:var(--text-2)">Goal: <strong style="color:var(--text-1)">78% reached</strong></span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════
+     LOGOS STRIP
+════════════════════════════════ -->
+<section class="logos-strip">
+  <div class="container">
+    <p class="logos-label">Trusted by people at top companies</p>
+    <div class="logos-row">
+      <span class="logo-item">Google</span>
+      <span class="logo-item">Razorpay</span>
+      <span class="logo-item">Zerodha</span>
+      <span class="logo-item">Infosys</span>
+      <span class="logo-item">Flipkart</span>
+      <span class="logo-item">Paytm</span>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════
+     FEATURES
+════════════════════════════════ -->
+<section class="features-section" id="features">
+  <div class="container">
+    <div class="features-header">
+      <p class="section-label">✦ Features</p>
+      <h2 class="section-title">Everything you need to<br><span>master your money</span></h2>
+      <p class="section-desc">Finzo gives you all the tools to understand, plan, and grow your finances without the spreadsheet headache.</p>
+    </div>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon fi-green">📊</div>
+        <h3 class="feature-title">Real-time Dashboard</h3>
+        <p class="feature-desc">See your income, expenses, and savings at a glance. Live stats update every time you add a transaction.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon fi-blue">🎯</div>
+        <h3 class="feature-title">Smart Budgets</h3>
+        <p class="feature-desc">Set monthly budgets per category and get instant alerts the moment you're close to overspending.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon fi-purple">🤖</div>
+        <h3 class="feature-title">AI Finance Assistant</h3>
+        <p class="feature-desc">Get personalized spending insights and tips powered by AI that knows your financial patterns.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon fi-amber">💰</div>
+        <h3 class="feature-title">Savings Goals</h3>
+        <p class="feature-desc">Create goals for your dreams — a vacation, a car, or an emergency fund — and track progress visually.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon fi-red">🏷️</div>
+        <h3 class="feature-title">Category Tracking</h3>
+        <p class="feature-desc">Organize every expense by category with beautiful charts so you know exactly where your money goes.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon fi-green">🧠</div>
+        <h3 class="feature-title">Spending Personality</h3>
+        <p class="feature-desc">Discover your unique money personality — Saver, Spender, or Investor — and learn habits to improve.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════
+     HOW IT WORKS
+════════════════════════════════ -->
+<section class="steps-section" id="how-it-works">
+  <div class="container">
+    <div class="steps-header">
+      <p class="section-label">✦ How it works</p>
+      <h2 class="section-title">Up and running in<br><span>3 simple steps</span></h2>
+    </div>
+    <div class="steps-grid">
+      <div class="step-card">
+        <div class="step-num">01</div>
+        <h3 class="step-title">Create your account</h3>
+        <p class="step-desc">Sign up in seconds with just your email. No credit card, no commitments. Your data is always private.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">02</div>
+        <h3 class="step-title">Set income & budget</h3>
+        <p class="step-desc">Enter your monthly income, set category budgets, and define a savings goal. Finzo does the rest.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">03</div>
+        <h3 class="step-title">Track & grow</h3>
+        <p class="step-desc">Log expenses daily, get AI-powered tips, and watch your savings grow toward your goals month after month.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════
+     TESTIMONIALS
+════════════════════════════════ -->
+<section class="testimonials-section" id="testimonials">
+  <div class="container">
+    <div class="testimonials-header">
+      <p class="section-label">✦ Reviews</p>
+      <h2 class="section-title">Loved by <span>real people</span></h2>
+    </div>
+    <div class="testimonials-grid">
+      <div class="testimonial-card">
+        <div class="testimonial-stars">★★★★★</div>
+        <p class="testimonial-text">"Finzo completely changed how I look at money. The AI assistant gave me tips I'd never have thought of myself. My savings doubled in 3 months!"</p>
+        <div class="testimonial-author">
+          <div class="author-avatar">P</div>
+          <div>
+            <div class="author-name">Priya Sharma</div>
+            <div class="author-label">Software Engineer, Bangalore</div>
+          </div>
+        </div>
+      </div>
+      <div class="testimonial-card">
+        <div class="testimonial-stars">★★★★★</div>
+        <p class="testimonial-text">"I used to use 3 different apps to track finances. Finzo replaced all of them. Clean design, zero learning curve, exactly what I needed."</p>
+        <div class="testimonial-author">
+          <div class="author-avatar">R</div>
+          <div>
+            <div class="author-name">Rahul Mehta</div>
+            <div class="author-label">Freelancer, Mumbai</div>
+          </div>
+        </div>
+      </div>
+      <div class="testimonial-card">
+        <div class="testimonial-stars">★★★★★</div>
+        <p class="testimonial-text">"The spending personality feature is brilliant! Found out I was a 'Lifestyle Inflator' and immediately cut ₹8k from my monthly expenses."</p>
+        <div class="testimonial-author">
+          <div class="author-avatar">A</div>
+          <div>
+            <div class="author-name">Ananya Patel</div>
+            <div class="author-label">Product Manager, Hyderabad</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════
+     CTA BANNER
+════════════════════════════════ -->
+<section class="cta-section">
+  <div class="container">
+    <div class="cta-box">
+      <h2 class="cta-title">Ready to get your<br><span>finances in shape?</span></h2>
+      <p class="cta-desc">Join thousands of users who track smarter, save more, and stress less about money.</p>
+      <div class="cta-actions">
+        <a href="/signup" class="btn btn-primary btn-lg">Create Free Account →</a>
+        <a href="/login"  class="btn btn-outline btn-lg">Already have an account</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════
+     FOOTER
+════════════════════════════════ -->
+<footer class="landing-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <div class="footer-brand-name">Fin<span>zo</span></div>
+        <p class="footer-brand-desc">A smart personal finance tracker that helps you take control of every rupee — built with ❤️ for India.</p>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">Product</div>
+        <a href="#features">Features</a>
+        <a href="#how-it-works">How it works</a>
+        <a href="/signup">Get started</a>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">Account</div>
+        <a href="/login">Login</a>
+        <a href="/signup">Sign up</a>
+        <a href="/dashboard">Dashboard</a>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">Legal</div>
+        <a href="#">Privacy Policy</a>
+        <a href="#">Terms of Use</a>
+        <a href="#">Contact</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2025 Finzo. All rights reserved.</span>
+      <span>Made with ❤️ for smart savers</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Navbar scroll
+  const nav = document.getElementById('landingNav');
+  window.addEventListener('scroll', () => {
+    nav.classList.toggle('scrolled', window.scrollY > 20);
+  });
+
+  // Mobile nav
+  const hamburger = document.getElementById('hamburger');
+  const mobileNav = document.getElementById('mobileNav');
+  hamburger.addEventListener('click', () => {
+    mobileNav.classList.toggle('open');
+  });
+  function closeMobileNav() { mobileNav.classList.remove('open'); }
+</script>
+
+</body>
+</html>

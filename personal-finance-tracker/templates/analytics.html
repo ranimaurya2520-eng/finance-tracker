@@ -1,0 +1,458 @@
+{% extends "layout.html" %}
+{% set active_page = 'analytics' %}
+
+{% block title %}Analytics{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── PAGE HEADER ────────────────────────────────── -->
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Analytics</h1>
+    <p class="page-subtitle">Deep insights into your financial health</p>
+  </div>
+  <!-- Time filter -->
+  <div class="filter-row">
+    <a href="/analytics?period=week"  class="filter-btn {% if period=='week' %}active{% endif %}">Week</a>
+    <a href="/analytics?period=month" class="filter-btn {% if period=='month' or not period %}active{% endif %}">Month</a>
+    <a href="/analytics?period=year"  class="filter-btn {% if period=='year' %}active{% endif %}">Year</a>
+    <a href="/analytics?period=all"   class="filter-btn {% if period=='all' %}active{% endif %}">All Time</a>
+  </div>
+</div>
+
+<!-- ── HEALTH SCORE + QUICK STATS ─────────────────── -->
+<div class="an-top-grid">
+
+  <!-- Financial Health Score -->
+  <div class="card health-card">
+    <h3 class="card-title"><span class="card-icon">❤️</span> Financial Health Score</h3>
+    <div class="health-score-wrap">
+      <div class="health-score-ring">
+        <svg viewBox="0 0 120 120" width="120" height="120">
+          <circle cx="60" cy="60" r="50" fill="none" stroke="var(--bg-3)" stroke-width="10"/>
+          <circle cx="60" cy="60" r="50" fill="none"
+                  stroke="{{ health_color }}" stroke-width="10"
+                  stroke-dasharray="{{ health_dash }} 314"
+                  stroke-dashoffset="78"
+                  stroke-linecap="round"
+                  style="transition: stroke-dasharray 1s ease"/>
+        </svg>
+        <div class="health-score-num" style="color:{{ health_color }}">{{ health_score }}</div>
+      </div>
+      <div class="health-score-info">
+        <div class="health-score-label" style="color:{{ health_color }}">{{ health_label }}</div>
+        <p class="health-score-desc">{{ health_desc }}</p>
+        <div class="health-bars">
+          <div class="health-bar-row">
+            <span>Savings Rate</span>
+            <div class="mini-track"><div class="mini-fill" style="width:{{ savings_rate }}%;background:var(--green)"></div></div>
+            <span class="mono">{{ savings_rate|round(0)|int }}%</span>
+          </div>
+          <div class="health-bar-row">
+            <span>Budget Usage</span>
+            <div class="mini-track"><div class="mini-fill" style="width:{{ budget_used_pct }}%;background:{{ 'var(--red)' if budget_used_pct > 90 else 'var(--amber)' if budget_used_pct > 70 else 'var(--green)' }}"></div></div>
+            <span class="mono">{{ budget_used_pct|round(0)|int }}%</span>
+          </div>
+          <div class="health-bar-row">
+            <span>Goal Progress</span>
+            <div class="mini-track"><div class="mini-fill" style="width:{{ goal_progress }}%;background:var(--blue)"></div></div>
+            <span class="mono">{{ goal_progress|round(0)|int }}%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Stats Column -->
+  <div class="an-quick-stats">
+    <div class="quick-stat-card qsc-green">
+      <div class="qs-label">Savings Rate</div>
+      <div class="qs-value">{{ savings_rate|round(1) }}%</div>
+      <div class="qs-sub">of income saved</div>
+    </div>
+    <div class="quick-stat-card qsc-blue">
+      <div class="qs-label">Avg Daily Spend</div>
+      <div class="qs-value">₹{{ avg_daily_spend|round(0)|int }}</div>
+      <div class="qs-sub">per day this period</div>
+    </div>
+    <div class="quick-stat-card qsc-amber">
+      <div class="qs-label">Top Category</div>
+      <div class="qs-value" style="font-size:15px">{{ top_category }}</div>
+      <div class="qs-sub">highest spending</div>
+    </div>
+    <div class="quick-stat-card qsc-purple">
+      <div class="qs-label">Transactions</div>
+      <div class="qs-value">{{ total_transactions }}</div>
+      <div class="qs-sub">total expenses</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── SPENDING TREND + CATEGORY PIE ──────────────── -->
+<div class="grid-2">
+
+  <!-- Spending Trend Line Chart -->
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px">
+      <h3 class="card-title" style="margin:0"><span class="card-icon">📉</span> Spending Trend</h3>
+      <span class="an-badge">{{ period|capitalize if period else 'Month' }}</span>
+    </div>
+    {% if trend_labels %}
+      <canvas id="trendChart" height="200"></canvas>
+    {% else %}
+      <div class="empty"><div class="empty-icon">📊</div><div class="empty-text">Not enough data for trends yet</div></div>
+    {% endif %}
+  </div>
+
+  <!-- Category Donut -->
+  <div class="card">
+    <h3 class="card-title"><span class="card-icon">🥧</span> Spending by Category</h3>
+    {% if category_totals %}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:center">
+        <div style="max-width:200px;margin:0 auto">
+          <canvas id="catDonut" height="200"></canvas>
+        </div>
+        <div class="an-legend">
+          {% set colors = ['#22C55E','#3B82F6','#F59E0B','#EF4444','#8B5CF6','#EC4899','#14B8A6','#F97316'] %}
+          {% for cat, amt in category_totals.items() %}
+            <div class="legend-row">
+              <span class="legend-dot" style="background:{{ colors[loop.index0 % colors|length] }}"></span>
+              <span class="legend-label">{{ cat }}</span>
+              <span class="legend-amt">₹{{ amt|round(0)|int }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% else %}
+      <div class="empty"><div class="empty-icon">📭</div><div class="empty-text">Add expenses to see breakdown</div></div>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- ── BUDGET vs ACTUAL BAR CHART ─────────────────── -->
+<div class="card">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px">
+    <h3 class="card-title" style="margin:0"><span class="card-icon">📋</span> Budget vs Actual Spending</h3>
+    {% if budget > 0 %}
+      <span class="an-badge {{ 'an-badge-red' if total_expense > budget else 'an-badge-green' }}">
+        {{ '⚠ Over budget' if total_expense > budget else '✓ Within budget' }}
+      </span>
+    {% endif %}
+  </div>
+  {% if category_totals and budget > 0 %}
+    <canvas id="budgetChart" height="120"></canvas>
+    <div class="budget-usage-row" style="margin-top:16px">
+      <div class="bu-item">
+        <span class="bu-label">Total Budget</span>
+        <span class="bu-value mono">₹{{ budget|round(0)|int }}</span>
+      </div>
+      <div class="bu-item">
+        <span class="bu-label">Total Spent</span>
+        <span class="bu-value mono" style="color:var(--red)">₹{{ total_expense|round(0)|int }}</span>
+      </div>
+      <div class="bu-item">
+        <span class="bu-label">Remaining</span>
+        <span class="bu-value mono" style="color:{{ 'var(--red)' if (budget - total_expense) < 0 else 'var(--green)' }}">
+          ₹{{ (budget - total_expense)|round(0)|int }}
+        </span>
+      </div>
+      <div class="bu-item">
+        <span class="bu-label">Used</span>
+        <span class="bu-value mono">{{ budget_used_pct|round(1) }}%</span>
+      </div>
+    </div>
+  {% elif not budget %}
+    <div class="empty"><div class="empty-icon">💡</div><div class="empty-text">Set a monthly budget on the Dashboard to see budget analysis</div></div>
+  {% else %}
+    <div class="empty"><div class="empty-icon">📭</div><div class="empty-text">Add expenses to compare against budget</div></div>
+  {% endif %}
+</div>
+
+<!-- ── INCOME BREAKDOWN + SAVINGS PROGRESS ────────── -->
+<div class="grid-2">
+
+  <!-- Income Sources -->
+  <div class="card">
+    <h3 class="card-title"><span class="card-icon">💵</span> Income Breakdown</h3>
+    {% if income_breakdown %}
+      <canvas id="incomeChart" height="220"></canvas>
+      <div class="an-legend" style="margin-top:16px">
+        {% set icolors = ['#22C55E','#3B82F6','#F59E0B','#8B5CF6','#14B8A6'] %}
+        {% for source, amt in income_breakdown.items() %}
+          <div class="legend-row">
+            <span class="legend-dot" style="background:{{ icolors[loop.index0 % icolors|length] }}"></span>
+            <span class="legend-label">{{ source }}</span>
+            <span class="legend-amt">₹{{ amt|round(0)|int }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty"><div class="empty-icon">💰</div><div class="empty-text">No bonus income recorded yet</div></div>
+    {% endif %}
+  </div>
+
+  <!-- Savings Goal Progress -->
+  <div class="card">
+    <h3 class="card-title"><span class="card-icon">🎯</span> Savings Goal Analysis</h3>
+    {% if savings_goal > 0 %}
+      <div class="savings-goal-block">
+        <div style="max-width:180px;margin:0 auto 20px">
+          <canvas id="savingsDonut" height="180"></canvas>
+        </div>
+
+        <div class="sg-stat-grid">
+          <div class="sg-stat">
+            <div class="sg-stat-label">Goal</div>
+            <div class="sg-stat-value">₹{{ savings_goal|round(0)|int }}</div>
+          </div>
+          <div class="sg-stat">
+            <div class="sg-stat-label">Saved</div>
+            <div class="sg-stat-value" style="color:var(--green)">₹{{ savings|round(0)|int }}</div>
+          </div>
+          <div class="sg-stat">
+            <div class="sg-stat-label">Remaining</div>
+            <div class="sg-stat-value" style="color:var(--amber)">₹{{ [savings_goal - savings, 0]|max|round(0)|int }}</div>
+          </div>
+          <div class="sg-stat">
+            <div class="sg-stat-label">Progress</div>
+            <div class="sg-stat-value" style="color:var(--blue)">{{ goal_progress|round(1) }}%</div>
+          </div>
+        </div>
+
+        {% if months_to_goal %}
+          <div class="alert alert-green" style="margin-top:16px">
+            🚀 At this rate you'll reach your goal in <strong>~{{ months_to_goal }} month{{ 's' if months_to_goal != 1 }}</strong>
+          </div>
+        {% endif %}
+      </div>
+    {% else %}
+      <div class="empty"><div class="empty-icon">🎯</div><div class="empty-text">Set a savings goal on the Dashboard to track progress</div></div>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- ── TOP EXPENSES TABLE ──────────────────────────── -->
+<div class="card">
+  <h3 class="card-title"><span class="card-icon">🏆</span> Top Expenses This Period</h3>
+  {% if top_expenses %}
+    <table class="an-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Category</th>
+          <th>Date</th>
+          <th style="text-align:right">Amount</th>
+          <th style="text-align:right">% of Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% set colors = ['#22C55E','#3B82F6','#F59E0B','#EF4444','#8B5CF6','#EC4899','#14B8A6','#F97316'] %}
+        {% for exp in top_expenses %}
+          <tr>
+            <td><span class="an-rank">{{ loop.index }}</span></td>
+            <td>
+              <span class="cat-dot" style="background:{{ colors[(loop.index0) % colors|length] }}"></span>
+              <span class="cat-name">{{ exp.category }}</span>
+            </td>
+            <td style="color:var(--text-3)">{{ exp.date.strftime('%d %b %Y') }}</td>
+            <td style="text-align:right"><span class="expense-amt">-₹{{ exp.amount }}</span></td>
+            <td style="text-align:right">
+              <span class="an-pct-bar-wrap">
+                <span class="an-pct-bar" style="width:{{ ((exp.amount / total_expense) * 100)|round(0) if total_expense else 0 }}%"></span>
+                <span class="mono" style="font-size:12px">{{ ((exp.amount / total_expense)*100)|round(1) if total_expense else 0 }}%</span>
+              </span>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="empty"><div class="empty-icon">🧾</div><div class="empty-text">No expenses yet for this period</div></div>
+  {% endif %}
+</div>
+
+<!-- ── INSIGHTS ────────────────────────────────────── -->
+<div class="card">
+  <h3 class="card-title"><span class="card-icon">💡</span> Smart Insights</h3>
+  <div class="insights-grid">
+    {% for insight in insights %}
+      <div class="insight-card insight-{{ insight.type }}">
+        <div class="insight-icon">{{ insight.icon }}</div>
+        <div class="insight-text">{{ insight.message }}</div>
+      </div>
+    {% endfor %}
+    {% if not insights %}
+      <div class="empty"><div class="empty-icon">✨</div><div class="empty-text">Add more expenses to unlock personalized insights</div></div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const palette  = ['#22C55E','#3B82F6','#F59E0B','#EF4444','#8B5CF6','#EC4899','#14B8A6','#F97316'];
+const gridColor = 'rgba(255,255,255,0.05)';
+const textColor = '#94A3B8';
+
+Chart.defaults.color = textColor;
+Chart.defaults.borderColor = gridColor;
+Chart.defaults.font.family = 'Sora, sans-serif';
+
+// ── Spending Trend ───────────────────────────────
+{% if trend_labels %}
+new Chart(document.getElementById('trendChart'), {
+  type: 'line',
+  data: {
+    labels: {{ trend_labels | tojson }},
+    datasets: [{
+      label: 'Spending',
+      data: {{ trend_values | tojson }},
+      borderColor: '#22C55E',
+      backgroundColor: 'rgba(34,197,94,0.08)',
+      borderWidth: 2.5,
+      pointBackgroundColor: '#22C55E',
+      pointRadius: 4,
+      pointHoverRadius: 6,
+      fill: true,
+      tension: 0.4
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { color: gridColor }, ticks: { color: textColor } },
+      y: {
+        grid: { color: gridColor }, ticks: { color: textColor,
+          callback: v => '₹' + v.toLocaleString()
+        }
+      }
+    }
+  }
+});
+{% endif %}
+
+// ── Category Donut ───────────────────────────────
+{% if category_totals %}
+new Chart(document.getElementById('catDonut'), {
+  type: 'doughnut',
+  data: {
+    labels: {{ category_totals.keys() | list | tojson }},
+    datasets: [{
+      data: {{ category_totals.values() | list | tojson }},
+      backgroundColor: palette.slice(0, {{ category_totals|length }}),
+      borderColor: '#141D2E',
+      borderWidth: 3,
+      hoverOffset: 8
+    }]
+  },
+  options: {
+    cutout: '65%',
+    plugins: { legend: { display: false } }
+  }
+});
+{% endif %}
+
+// ── Budget vs Actual ─────────────────────────────
+{% if category_totals and budget > 0 %}
+const catLabels = {{ category_totals.keys() | list | tojson }};
+const catActual = {{ category_totals.values() | list | tojson }};
+const budgetPerCat = {{ budget }} / Math.max(catLabels.length, 1);
+new Chart(document.getElementById('budgetChart'), {
+  type: 'bar',
+  data: {
+    labels: catLabels,
+    datasets: [
+      {
+        label: 'Budget',
+        data: catLabels.map(() => budgetPerCat),
+        backgroundColor: 'rgba(59,130,246,0.25)',
+        borderColor: '#3B82F6',
+        borderWidth: 1.5,
+        borderRadius: 6,
+      },
+      {
+        label: 'Actual',
+        data: catActual,
+        backgroundColor: catActual.map((v, i) =>
+          v > budgetPerCat ? 'rgba(239,68,68,0.7)' : 'rgba(34,197,94,0.7)'
+        ),
+        borderColor: catActual.map((v, i) =>
+          v > budgetPerCat ? '#EF4444' : '#22C55E'
+        ),
+        borderWidth: 1.5,
+        borderRadius: 6,
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: {
+        labels: { color: textColor, usePointStyle: true, pointStyle: 'circle', padding: 20 }
+      }
+    },
+    scales: {
+      x: { grid: { color: gridColor }, ticks: { color: textColor } },
+      y: {
+        grid: { color: gridColor }, ticks: {
+          color: textColor, callback: v => '₹' + v.toLocaleString()
+        }
+      }
+    }
+  }
+});
+{% endif %}
+
+// ── Income Breakdown ─────────────────────────────
+{% if income_breakdown %}
+new Chart(document.getElementById('incomeChart'), {
+  type: 'doughnut',
+  data: {
+    labels: {{ income_breakdown.keys() | list | tojson }},
+    datasets: [{
+      data: {{ income_breakdown.values() | list | tojson }},
+      backgroundColor: ['#22C55E','#3B82F6','#F59E0B','#8B5CF6','#14B8A6'],
+      borderColor: '#141D2E',
+      borderWidth: 3,
+      hoverOffset: 6
+    }]
+  },
+  options: {
+    cutout: '60%',
+    plugins: { legend: { display: false } }
+  }
+});
+{% endif %}
+
+// ── Savings Donut ────────────────────────────────
+{% if savings_goal > 0 %}
+const saved    = Math.max(0, {{ savings }});
+const goalAmt  = {{ savings_goal }};
+const leftover = Math.max(0, goalAmt - saved);
+new Chart(document.getElementById('savingsDonut'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Saved', 'Remaining'],
+    datasets: [{
+      data: [Math.min(saved, goalAmt), leftover],
+      backgroundColor: ['#22C55E', 'rgba(255,255,255,0.06)'],
+      borderColor: '#141D2E',
+      borderWidth: 3
+    }]
+  },
+  options: {
+    cutout: '68%',
+    plugins: { legend: { display: false } }
+  }
+});
+{% endif %}
+</script>
+{% endblock %}

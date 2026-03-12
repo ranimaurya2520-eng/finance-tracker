@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finzo — Login</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<div class="auth-page">
+
+  <!-- LEFT PANEL -->
+  <div class="auth-left">
+    <div class="auth-left-content">
+      <a href="/" class="auth-left-logo">
+        <div class="auth-left-logo-icon">💰</div>
+        Fin<span>zo</span>
+      </a>
+      <h2 class="auth-left-title">Your money,<br><span>perfectly organized</span></h2>
+      <p class="auth-left-desc">Sign in to your dashboard and take control of every rupee you earn and spend.</p>
+      <div class="auth-features">
+        <div class="auth-feature">
+          <div class="auth-feature-icon">📊</div>
+          Real-time expense tracking with smart categories
+        </div>
+        <div class="auth-feature">
+          <div class="auth-feature-icon">🎯</div>
+          Set budgets and get alerts before you overspend
+        </div>
+        <div class="auth-feature">
+          <div class="auth-feature-icon">🤖</div>
+          AI-powered insights tailored to your habits
+        </div>
+        <div class="auth-feature">
+          <div class="auth-feature-icon">💰</div>
+          Track savings goals and watch them grow
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="auth-right">
+    <div class="auth-card">
+      <h1 class="auth-card-title">Welcome back 👋</h1>
+      <p class="auth-card-sub">
+        Don't have an account? <a href="/signup">Sign up free →</a>
+      </p>
+
+      {% if error %}
+        <div class="alert alert-red" style="margin-bottom:20px">⚠️ {{ error }}</div>
+      {% endif %}
+
+      <form action="/login" method="POST">
+        <div class="form-group">
+          <label class="form-label">Email address</label>
+          <input class="input" type="email" name="email" placeholder="you@example.com" required autofocus>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input class="input" type="password" name="password" placeholder="Enter your password" required>
+        </div>
+        <button class="btn btn-primary btn-block" type="submit" style="padding:13px;font-size:15px">
+          Sign In →
+        </button>
+      </form>
+
+      <div class="auth-divider">or</div>
+
+      <div class="auth-footer-link">
+        New to Finzo? <a href="/signup">Create a free account</a>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

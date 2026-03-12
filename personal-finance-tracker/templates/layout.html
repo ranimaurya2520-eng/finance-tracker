@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finzo — {% block title %}Dashboard{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+<button class="mobile-toggle" id="mobileToggle" aria-label="Open menu">☰</button>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<div class="dash-layout">
+
+  <!-- ═══════════ SIDEBAR ═══════════ -->
+  <aside class="sidebar" id="sidebar">
+
+    <a href="/" class="sidebar-brand">
+      <div class="sidebar-brand-icon">💰</div>
+      <span class="sidebar-brand-text">Fin<span>zo</span></span>
+    </a>
+
+    <nav class="sidebar-nav">
+      <span class="sidebar-section-label">Main</span>
+      <a href="/dashboard" class="nav-link {% if active_page == 'dashboard' %}active{% endif %}">
+        <span class="nav-link-icon">📊</span> Dashboard
+      </a>
+      <a href="/analytics" class="nav-link {% if active_page == 'analytics' %}active{% endif %}">
+        <span class="nav-link-icon">📈</span> Analytics
+      </a>
+      <a href="/reports" class="nav-link {% if active_page == 'reports' %}active{% endif %}">
+        <span class="nav-link-icon">📄</span> Reports
+      </a>
+
+      <span class="sidebar-section-label">Tools</span>
+      <a href="/lend-borrow" class="nav-link {% if active_page == 'lend_borrow' %}active{% endif %}">
+        <span class="nav-link-icon">🤝</span> Lend &amp; Borrow
+      </a>
+      <a href="/assistant" class="nav-link {% if active_page == 'assistant' %}active{% endif %}">
+        <span class="nav-link-icon">🤖</span> AI Assistant
+      </a>
+      <a href="/settings" class="nav-link {% if active_page == 'settings' %}active{% endif %}">
+        <span class="nav-link-icon">⚙️</span> Settings
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-user-avatar">{{ email[0]|upper if email else 'U' }}</div>
+        <div class="sidebar-user-info">
+          <div class="sidebar-user-name">{{ email.split('@')[0]|title if email else 'User' }}</div>
+          <div class="sidebar-user-email">{{ email }}</div>
+        </div>
+      </div>
+      <a href="/logout" class="sidebar-logout">🚪 Logout</a>
+    </div>
+
+  </aside>
+  <!-- ═══════════ END SIDEBAR ═══════════ -->
+
+  <main class="dash-main">
+    {% block content %}{% endblock %}
+  </main>
+
+</div>
+
+<script>
+  const toggle  = document.getElementById('mobileToggle');
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  toggle.addEventListener('click', () => {
+    const open = sidebar.classList.toggle('open');
+    overlay.classList.toggle('visible', open);
+    toggle.textContent = open ? '✕' : '☰';
+  });
+  overlay.addEventListener('click', () => {
+    sidebar.classList.remove('open');
+    overlay.classList.remove('visible');
+    toggle.textContent = '☰';
+  });
+</script>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

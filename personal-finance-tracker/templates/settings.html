@@ -1,0 +1,287 @@
+{% extends "layout.html" %}
+{% set active_page = 'settings' %}
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Settings</h1>
+    <p class="page-subtitle">Manage your profile and account preferences</p>
+  </div>
+</div>
+
+{% if success %}
+  <div class="alert alert-green" style="margin-bottom:20px">✅ {{ success }}</div>
+{% endif %}
+{% if error %}
+  <div class="alert alert-red" style="margin-bottom:20px">❌ {{ error }}</div>
+{% endif %}
+
+<div class="settings-layout">
+
+  <!-- ── LEFT: NAV TABS ───────────────────────────── -->
+  <div class="settings-tabs">
+    <button class="stab active" onclick="showTab('profile', this)">👤 Profile</button>
+    <button class="stab" onclick="showTab('preferences', this)">🎨 Preferences</button>
+    <button class="stab" onclick="showTab('security', this)">🔒 Security</button>
+    <button class="stab stab-danger" onclick="showTab('danger', this)">⚠️ Danger Zone</button>
+  </div>
+
+  <!-- ── RIGHT: CONTENT PANELS ────────────────────── -->
+  <div class="settings-content">
+
+    <!-- PROFILE TAB -->
+    <div class="stab-panel active" id="tab-profile">
+      <div class="card" style="margin-bottom:0">
+        <h3 class="card-title"><span class="card-icon">👤</span> Profile Information</h3>
+
+        <!-- Avatar picker -->
+        <div class="avatar-section">
+          <div class="avatar-preview" id="avatarPreview">{{ profile.avatar or '😊' }}</div>
+          <div class="avatar-info">
+            <div class="avatar-label">Profile Avatar</div>
+            <div class="avatar-sub">Pick an emoji that represents you</div>
+            <div class="avatar-grid">
+              {% for emoji in ['😊','😎','🧑','👩','🦁','🐯','🦊','🐼','🚀','💎','⚡','🔥','🌟','💰','🎯','🏆'] %}
+                <button class="avatar-opt {{ 'selected' if (profile.avatar or '😊') == emoji }}"
+                        onclick="selectAvatar('{{ emoji }}')">{{ emoji }}</button>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+
+        <form action="/settings/profile" method="POST">
+          <input type="hidden" name="avatar" id="avatarInput" value="{{ profile.avatar or '😊' }}">
+          <div class="grid-2" style="margin-bottom:0">
+            <div class="form-group">
+              <label class="form-label">Full Name</label>
+              <input class="input" type="text" name="full_name"
+                     placeholder="Enter your full name"
+                     value="{{ profile.full_name or '' }}">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Phone Number</label>
+              <input class="input" type="tel" name="phone"
+                     placeholder="+91 00000 00000"
+                     value="{{ profile.phone or '' }}">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email Address</label>
+            <input class="input" type="email" value="{{ email }}" disabled
+                   style="opacity:0.5;cursor:not-allowed">
+            <span style="font-size:12px;color:var(--text-3);margin-top:6px;display:block">
+              Email cannot be changed
+            </span>
+          </div>
+          <button type="submit" class="btn btn-primary">Save Profile</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- PREFERENCES TAB -->
+    <div class="stab-panel" id="tab-preferences">
+      <div class="card" style="margin-bottom:0">
+        <h3 class="card-title"><span class="card-icon">🎨</span> Preferences</h3>
+        <form action="/settings/preferences" method="POST">
+          <div class="form-group">
+            <label class="form-label">Currency Symbol</label>
+            <div class="currency-grid">
+              {% for sym, label in [('₹','Indian Rupee (₹)'),('$','US Dollar ($)'),('€','Euro (€)'),('£','British Pound (£)'),('¥','Japanese Yen (¥)'),('₩','Korean Won (₩)')] %}
+                <label class="currency-opt {{ 'selected' if (profile.currency or '₹') == sym }}">
+                  <input type="radio" name="currency" value="{{ sym }}"
+                         {{ 'checked' if (profile.currency or '₹') == sym }}
+                         onchange="highlightCurrency(this.parentElement)">
+                  <span class="cur-sym">{{ sym }}</span>
+                  <span class="cur-label">{{ label }}</span>
+                </label>
+              {% endfor %}
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary">Save Preferences</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- SECURITY TAB -->
+    <div class="stab-panel" id="tab-security">
+      <div class="card" style="margin-bottom:0">
+        <h3 class="card-title"><span class="card-icon">🔒</span> Change Password</h3>
+        <form action="/settings/password" method="POST">
+          <div class="form-group">
+            <label class="form-label">Current Password</label>
+            <div class="pw-wrap">
+              <input class="input" type="password" name="current_password"
+                     id="pw1" placeholder="Enter current password" required>
+              <button type="button" class="pw-toggle" onclick="togglePw('pw1',this)">👁</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">New Password</label>
+            <div class="pw-wrap">
+              <input class="input" type="password" name="new_password"
+                     id="pw2" placeholder="Enter new password" required minlength="6">
+              <button type="button" class="pw-toggle" onclick="togglePw('pw2',this)">👁</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Confirm New Password</label>
+            <div class="pw-wrap">
+              <input class="input" type="password" name="confirm_password"
+                     id="pw3" placeholder="Repeat new password" required>
+              <button type="button" class="pw-toggle" onclick="togglePw('pw3',this)">👁</button>
+            </div>
+          </div>
+          <!-- Strength indicator -->
+          <div class="pw-strength" id="pwStrength" style="display:none">
+            <div class="pw-strength-bar">
+              <div class="pw-strength-fill" id="pwFill"></div>
+            </div>
+            <span class="pw-strength-label" id="pwLabel"></span>
+          </div>
+          <button type="submit" class="btn btn-primary">Update Password</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- DANGER ZONE TAB -->
+    <div class="stab-panel" id="tab-danger">
+      <div class="card danger-card" style="margin-bottom:0">
+        <h3 class="card-title" style="color:var(--red)">
+          <span class="card-icon" style="background:var(--red-dim)">⚠️</span> Danger Zone
+        </h3>
+        <p style="font-size:14px;color:var(--text-2);margin-bottom:24px;line-height:1.7">
+          Deleting your account will permanently erase <strong style="color:var(--text-1)">all your expenses, income logs, and settings</strong>.
+          This action <strong style="color:var(--red)">cannot be undone</strong>.
+        </p>
+
+        <div class="danger-stats">
+          <div class="danger-stat">
+            <div class="ds-num">{{ total_expenses }}</div>
+            <div class="ds-label">Expenses</div>
+          </div>
+          <div class="danger-stat">
+            <div class="ds-num">{{ total_income_logs }}</div>
+            <div class="ds-label">Income Logs</div>
+          </div>
+          <div class="danger-stat">
+            <div class="ds-num">₹{{ total_spent }}</div>
+            <div class="ds-label">Total Tracked</div>
+          </div>
+        </div>
+
+        <button class="btn btn-danger" style="margin-top:20px" onclick="openDeleteModal()">
+          🗑 Delete My Account
+        </button>
+      </div>
+    </div>
+
+  </div><!-- end settings-content -->
+</div>
+
+<!-- ── DELETE CONFIRMATION MODAL ─────────────────── -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal-box">
+    <div class="modal-icon">⚠️</div>
+    <h3 class="modal-title">Delete Account</h3>
+    <p class="modal-desc">
+      Type <strong style="color:var(--red);font-family:'JetBrains Mono',monospace">DELETE</strong> below to confirm.
+      This will permanently remove your account and all data.
+    </p>
+    <input class="input" type="text" id="deleteConfirmInput"
+           placeholder="Type DELETE here" oninput="checkDeleteWord(this)">
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeDeleteModal()">Cancel</button>
+      <form action="/delete_account" method="POST" style="display:inline">
+        <button type="submit" class="btn btn-danger" id="deleteBtn" disabled>
+          Delete Forever
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Tab switching ─────────────────────────────────
+function showTab(name, btn) {
+  document.querySelectorAll('.stab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.stab').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ── Avatar picker ─────────────────────────────────
+function selectAvatar(emoji) {
+  document.getElementById('avatarPreview').textContent = emoji;
+  document.getElementById('avatarInput').value = emoji;
+  document.querySelectorAll('.avatar-opt').forEach(b => b.classList.remove('selected'));
+  event.target.classList.add('selected');
+}
+
+// ── Currency highlight ────────────────────────────
+function highlightCurrency(el) {
+  document.querySelectorAll('.currency-opt').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+// ── Password toggle ───────────────────────────────
+function togglePw(id, btn) {
+  const inp = document.getElementById(id);
+  inp.type  = inp.type === 'password' ? 'text' : 'password';
+  btn.textContent = inp.type === 'password' ? '👁' : '🙈';
+}
+
+// ── Password strength ─────────────────────────────
+document.getElementById('pw2').addEventListener('input', function() {
+  const val  = this.value;
+  const wrap = document.getElementById('pwStrength');
+  const fill = document.getElementById('pwFill');
+  const lbl  = document.getElementById('pwLabel');
+  if (!val) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'flex';
+  let score = 0;
+  if (val.length >= 8) score++;
+  if (/[A-Z]/.test(val)) score++;
+  if (/[0-9]/.test(val)) score++;
+  if (/[^A-Za-z0-9]/.test(val)) score++;
+  const levels = [
+    { pct:'25%', color:'var(--red)',   text:'Weak' },
+    { pct:'50%', color:'var(--amber)', text:'Fair' },
+    { pct:'75%', color:'var(--blue)',  text:'Good' },
+    { pct:'100%',color:'var(--green)', text:'Strong' },
+  ];
+  const l = levels[score - 1] || levels[0];
+  fill.style.width      = l.pct;
+  fill.style.background = l.color;
+  lbl.textContent       = l.text;
+  lbl.style.color       = l.color;
+});
+
+// ── Delete modal ──────────────────────────────────
+function openDeleteModal() {
+  document.getElementById('deleteModal').classList.add('visible');
+  document.getElementById('deleteConfirmInput').value = '';
+  document.getElementById('deleteBtn').disabled = true;
+}
+function closeDeleteModal() {
+  document.getElementById('deleteModal').classList.remove('visible');
+}
+function checkDeleteWord(inp) {
+  document.getElementById('deleteBtn').disabled = inp.value !== 'DELETE';
+}
+document.getElementById('deleteModal').addEventListener('click', function(e) {
+  if (e.target === this) closeDeleteModal();
+});
+
+// ── Open tab from URL hash ─────────────────────────
+const hash = window.location.hash.replace('#','');
+if (['profile','preferences','security','danger'].includes(hash)) {
+  const btn = document.querySelector(`.stab[onclick*="${hash}"]`);
+  if (btn) showTab(hash, btn);
+}
+</script>
+{% endblock %}
